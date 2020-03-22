@@ -1,0 +1,5 @@
+
+# 0. Detailed experiments about Lifelong Network evolution with SSA
+# 1. Intrinsic motivation
+# 2. Topology in SSA (SSA_MultiD)
+# 3. Redundancy removal (longer programs with same rewards should be removed, but i guess time and energy to computation alone might solve this)
