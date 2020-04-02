@@ -89,7 +89,7 @@ class SSAimplementor(CompleteLearner):
         self.stats=IS_LearnerStatistics(self)
 
     def initStack(self):
-        self.Stack = Stack(5000,StackEntries.StackEntry(self.t, self.R, self.Pol)) # initialize stack with initial stack entry
+        self.Stack = Stack(5000,IS.StackEntries.StackEntry(self.t, self.R, self.Pol)) # initialize stack with initial stack entry
     def printStack(self):
         stack_size = len(self.Stack)
         strin=""
@@ -375,14 +375,14 @@ class SSAimplementor(CompleteLearner):
             self.numR = 0# --> force evaluation
 
     def restore(self, entry):
-        if isinstance(entry, StackEntries.StackEntry):
+        if isinstance(entry, IS.StackEntries.StackEntry):
             if (entry.oldP is not None):
                 self.Pol[entry.address] = entry.oldP  # to restore old policy
             else:
                 raise Exception()
-        elif isinstance(entry, StackEntries.PolicyStackEntry):
+        elif isinstance(entry, IS.StackEntries.PolicyStackEntry):
             self.Pol=entry.pol
-        elif isinstance(entry, StackEntries.StackEntryPredMod):
+        elif isinstance(entry, IS.StackEntries.StackEntryPredMod):
             if (entry.oldMeans is not None):
                 self.predictiveMod.means[entry.address - self.ProgramStart] = entry.oldMeans  # to restore old policy
             else:
@@ -919,7 +919,7 @@ class SSA(SSAimplementor):
             str+="\n"
         return str
     def add_entry(self,t,R,oldP,address,first):
-        return StackEntries.StackEntry(t=t, R=R, oldP=oldP, address=address, first=first)
+        return IS.StackEntries.StackEntry(t=t, R=R, oldP=oldP, address=address, first=first)
     def addPolicyChange(self):
         # change polic and return the old policy
         self.polChanged = True
@@ -1279,12 +1279,12 @@ class SSA_with_WM(SSA):
             self.polfile.write("\n --------------- \n Final Stack: \n")
             for i in range(stack_size):
                 self.polfile.write(str(self.Stack[i]) + "\n")
-        list=[entry for entry in self.Stack if isinstance(entry,StackEntries.StackEntry)]
+        list=[entry for entry in self.Stack if isinstance(entry,IS.StackEntries.StackEntry)]
         self.polfile.write("\n ------------------ \n Num Valid P-Modifications %d " % (len(list)-1,))
         self.polfile.write("\n ------------------ \n Num Total P-Modifications %d " % (self.stats.numPModifications,))
 
         if self.predictiveSelfMod:
-            list = [entry for entry in self.Stack if isinstance(entry, StackEntries.StackEntryPredMod)]
+            list = [entry for entry in self.Stack if isinstance(entry, IS.StackEntries.StackEntryPredMod)]
             self.polfile.write("\n ------------------ \n Num Valid Predictive Modifications %d " % (len(list),))
             self.polfile.write("\n ------------------ \n Num Total Predictive Modifications %d " % (self.stats.numPredictiveModifications,))
 
@@ -1514,7 +1514,7 @@ class SSA_with_WM(SSA):
         address = self.indexToBeModified  # address of the modified program cell
         #oldMeans = copy.copy(self.predictiveMod.means[self.indexToBeModified])  # prob distrutions before the modification (we use multiple, in case we want at some point PLAs that change multiple pol_i's at a time)
         first = self.getPointerToFirstModification(len(self.Stack))  # pointer to the index of the first modification of this SMS on the stack (take into account the new entry so size-1+1)
-        newEntry = StackEntries.StackEntryPredMod(t=self.t, R=self.R, oldMeans=oldMeans, address=address, first=first)
+        newEntry = IS.StackEntries.StackEntryPredMod(t=self.t, R=self.R, oldMeans=oldMeans, address=address, first=first)
 
         self.Stack.push(newEntry)
 
@@ -1963,12 +1963,12 @@ class SSA_with_WM(SSA):
             out.append(self.c[self.OutputStart+i])
         return out
     # def restore(self,entry):
-    #     if isinstance(entry,StackEntries.StackEntry):
+    #     if isinstance(entry,IS.StackEntries.StackEntry):
     #         if (entry.oldP != None):
     #             self.Pol[entry.address] = entry.oldP  # to restore old policy
     #         else:
     #             raise Exception()
-    #     elif isinstance(entry,StackEntries.StackEntryPredMod):
+    #     elif isinstance(entry,IS.StackEntries.StackEntryPredMod):
     #         if (entry.oldMeans != None):
     #             self.predictiveMod.means[entry.address-self.ProgramStart] = entry.oldMeans  # to restore old policy
     #         else:
@@ -2098,7 +2098,7 @@ class SSA_SingleIndexWM(SSA):
                 self.polfile.write("Final Stack")
                 for i in range(stack_size):
                     self.polfile.write(str(self.Stack[i]) + "\n")
-            list = [entry for entry in self.Stack if isinstance(entry, StackEntries.StackEntry)]
+            list = [entry for entry in self.Stack if isinstance(entry, IS.StackEntries.StackEntry)]
             self.polfile.write("\n ------------------ \n Num Valid P-Modifications %d " % (len(list) - 1,))
             self.polfile.write("\n ------------------ \n Num Total P-Modifications %d " % (self.stats.numPModifications,))
             self.polfile.write("\n --------------- \n Final Program Cells: \n")

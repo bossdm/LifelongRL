@@ -20,6 +20,7 @@ Experiment in which agent has to run on many environment
 import os
 import sys
 
+import random
 
 import numpy
 print ("numpy version" +str(numpy.__version__))
@@ -263,7 +264,7 @@ def initialise_tasks(time_per_task,T,feature_set):
     old_t = 0
     t=time_per_task
     tasks=[]
-    num_tasks=T/time_per_task
+    num_tasks=T//time_per_task
     for i in range(num_tasks):
         # (task_feature, task_type, reward_fun, funs, start_time, end_time, topology_type=None,
         #                  files=None, environment=None, generate_new=False, maze_id=None):
@@ -288,7 +289,7 @@ def initialise_tasks_featureweights(time_per_task,T,task_weights):
     old_t = 0
     t=time_per_task
     tasks=[]
-    num_tasks=T/time_per_task
+    num_tasks=T//time_per_task
     for i in range(num_tasks):
         # (task_feature, task_type, reward_fun, funs, start_time, end_time, topology_type=None,
         #                  files=None, environment=None, generate_new=False, maze_id=None):
@@ -311,7 +312,7 @@ def initialise_tasks_featureweightsIndexes(time_per_task,T,task_weights):
     old_t = 0
     t=time_per_task
     tasks=[[] for i in range(unique_tasks)]
-    num_tasks=T/time_per_task
+    num_tasks=T//time_per_task
     for i in range(num_tasks):
         # (task_feature, task_type, reward_fun, funs, start_time, end_time, topology_type=None,
         #                  files=None, environment=None, generate_new=False, maze_id=None):

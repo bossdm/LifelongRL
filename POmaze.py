@@ -525,7 +525,7 @@ def main(arg_list):
                 else:
                     enhance_PLA=20
                 SSA_WM_Params['filename'] = filename
-                SSA_WM_Params['enhance_PLA'] = enhance_PLA/num_PLAs if not defaultparams['real_time'] else 0
+                SSA_WM_Params['enhance_PLA'] = enhance_PLA//num_PLAs if not defaultparams['real_time'] else 0
                 print("enhance PLA = "+str(SSA_WM_Params['enhance_PLA']))
                 method = SSA_with_WM(**SSA_WM_Params)
 
@@ -539,7 +539,7 @@ def main(arg_list):
                 else:
                     enhance_PLA=18
                 SSA_WM_Params['filename'] = filename
-                SSA_WM_Params['enhance_PLA'] = enhance_PLA/num_PLAs if not defaultparams['real_time'] else 0
+                SSA_WM_Params['enhance_PLA'] = enhance_PLA//num_PLAs if not defaultparams['real_time'] else 0
                 print("enhance PLA = "+str(SSA_WM_Params['enhance_PLA']))
                 input_addresses=range(4,8)
                 from IS.SSA_gradientQ import ConversionType
@@ -556,7 +556,7 @@ def main(arg_list):
                 else:
                     enhance_PLA=18
                 SSA_WM_Params['filename'] = filename
-                SSA_WM_Params['enhance_PLA'] = enhance_PLA/num_PLAs if not defaultparams['real_time'] else 0
+                SSA_WM_Params['enhance_PLA'] = enhance_PLA//num_PLAs if not defaultparams['real_time'] else 0
                 print("enhance PLA = "+str(SSA_WM_Params['enhance_PLA']))
                 input_addresses=range(0,8)
                 from IS.SSA_gradientQ import ConversionType
@@ -573,7 +573,7 @@ def main(arg_list):
                 else:
                     enhance_PLA=18
                 SSA_WM_Params['filename'] = filename
-                SSA_WM_Params['enhance_PLA'] = enhance_PLA/num_PLAs if not defaultparams['real_time'] else 0
+                SSA_WM_Params['enhance_PLA'] = enhance_PLA//num_PLAs if not defaultparams['real_time'] else 0
                 print("enhance PLA = "+str(SSA_WM_Params['enhance_PLA']))
                 input_addresses=range(4,8)
                 from IS.SSA_gradientQ import ConversionType
@@ -593,7 +593,7 @@ def main(arg_list):
                 else:
                     enhance_PLA=18
                 SSA_WM_Params['filename'] = filename
-                SSA_WM_Params['enhance_PLA'] = enhance_PLA/num_PLAs if not defaultparams['real_time'] else 0
+                SSA_WM_Params['enhance_PLA'] = enhance_PLA//num_PLAs if not defaultparams['real_time'] else 0
                 print("enhance PLA = "+str(SSA_WM_Params['enhance_PLA']))
                 input_addresses=range(4,8)
                 from IS.SSA_gradientQ import ConversionType
@@ -603,7 +603,7 @@ def main(arg_list):
             elif methodname=='SSA_gradientQsequence_nomodification':
                 enhance_PLA=0
                 SSA_WM_Params['filename'] = filename
-                SSA_WM_Params['enhance_PLA'] = enhance_PLA/num_PLAs if not defaultparams['real_time'] else 0
+                SSA_WM_Params['enhance_PLA'] = enhance_PLA//num_PLAs if not defaultparams['real_time'] else 0
                 print("enhance PLA = "+str(SSA_WM_Params['enhance_PLA']))
                 input_addresses=range(4,8)
                 from IS.SSA_gradientQ import ConversionType
@@ -622,7 +622,7 @@ def main(arg_list):
                 else:
                     enhance_PLA=18
                 SSA_WM_Params['filename'] = filename
-                SSA_WM_Params['enhance_PLA'] = enhance_PLA/num_PLAs if not defaultparams['real_time'] else 0
+                SSA_WM_Params['enhance_PLA'] = enhance_PLA//num_PLAs if not defaultparams['real_time'] else 0
                 print("enhance PLA = "+str(SSA_WM_Params['enhance_PLA']))
                 input_addresses=range(4,8)
                 from IS.SSA_gradientQ import ConversionType
@@ -639,7 +639,7 @@ def main(arg_list):
                 else:
                     enhance_PLA=18
                 SSA_WM_Params['filename'] = filename
-                SSA_WM_Params['enhance_PLA'] = enhance_PLA/num_PLAs if not defaultparams['real_time'] else 0
+                SSA_WM_Params['enhance_PLA'] = enhance_PLA//num_PLAs if not defaultparams['real_time'] else 0
                 print("enhance PLA = "+str(SSA_WM_Params['enhance_PLA']))
                 input_addresses=range(4,8)
                 from IS.SSA_gradientQ import ConversionType
@@ -693,7 +693,7 @@ def main(arg_list):
                 else:
                     enhance_PLA = 18
                 SSA_WM_Params['filename'] = filename
-                SSA_WM_Params['enhance_PLA'] = enhance_PLA/num_PLAs if not defaultparams['real_time'] else 0
+                SSA_WM_Params['enhance_PLA'] = enhance_PLA//num_PLAs if not defaultparams['real_time'] else 0
                 print("enhance PLA = "+str(SSA_WM_Params['enhance_PLA']))
                 input_addresses=range(4,8)
                 from IS.SSA_gradientQ import ConversionType
@@ -737,7 +737,7 @@ def main(arg_list):
                 else:
                     enhance_PLA = 18
                 SSA_WM_Params['filename'] = filename
-                SSA_WM_Params['enhance_PLA'] = enhance_PLA/num_PLAs if not defaultparams['real_time'] else 0
+                SSA_WM_Params['enhance_PLA'] = enhance_PLA//num_PLAs if not defaultparams['real_time'] else 0
                 print("enhance PLA = "+str(SSA_WM_Params['enhance_PLA']))
                 input_addresses=range(4,8)
                 from IS.SSA_gradientQ import ConversionType
@@ -748,6 +748,7 @@ def main(arg_list):
                 method.Qlearner.batch_size=32
             e = POmaze(NavigationAgent(method,defaultparams),visual,switching,defaultparams)
             e.set_tasks(defaultparams['tasks'],statfreq)
+            e.agent.learner.set_tasks(defaultparams['tasks']) 
 
     if args.run_type == "create_mazes":
         e.createMazes()

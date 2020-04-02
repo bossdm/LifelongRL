@@ -27,43 +27,43 @@ class SSA_gradientQ_Stats(IS_NEAT_LearnerStatistics):
 
     def __init__(self, learner):
         IS_NEAT_LearnerStatistics.__init__(self, learner)
-    def init_dict(self,learner,init):
-        return {task: [deepcopy(init) for i in range(len(learner.Qlearners))] for task in learner.tasks}
-    def init_dict_nops(self,learner,init):
-        return {task: [[deepcopy(init)  for i in range(learner.n_ops)] for i in range(len(learner.Qlearners))] for task in learner.tasks}
+    # def init_dict(self,learner,init):
+    #     return {task: [deepcopy(init) for i in range(len(learner.Qlearners))] for task in learner.tasks}
+    # def init_dict_nops(self,learner,init):
+    #     return {task: [[deepcopy(init)  for i in range(learner.n_ops)] for i in range(len(learner.Qlearners))] for task in learner.tasks}
     def set_tasks(self,learner):
-        self.slicerewards=self.init_dict(learner,init=0)
-        self.slicerewardsOverTime=self.init_dict(learner,init=[])
-        self.match_jumpexperience = self.init_dict(learner,init=0)
-        self.match_jumpexperienceOverTime = self.init_dict(learner,init=[])
-        self.num_experience_changes=self.init_dict(learner,init=0)
-        self.num_experience_changesOverTime=self.init_dict(learner,init=[])
-        self.num_network_trainings=self.init_dict(learner,init=0)
-        self.num_network_trainingsOverTime=self.init_dict(learner,init=[])
-        self.batch_size=self.init_dict(learner,init=0)
-        self.batch_sizeOverTime=self.init_dict(learner,init=[])
-        self.time_outs=self.init_dict(learner,init=0)
-        self.time_outsOverTime=self.init_dict(learner,init=[])
-        self.match_experience=self.init_dict(learner,init=0)
-        self.match_experienceOverTime=self.init_dict(learner,init=[])
+        self.slicerewards=0
+        self.slicerewardsOverTime=[]
+        self.match_jumpexperience = init=0
+        self.match_jumpexperienceOverTime = init=[]
+        self.num_experience_changes=init=0
+        self.num_experience_changesOverTime=init=[]
+        self.num_network_trainings=init=0
+        self.num_network_trainingsOverTime=init=[]
+        self.batch_size=init=0
+        self.batch_sizeOverTime=init=[]
+        self.time_outs=init=0
+        self.time_outsOverTime=init=[]
+        self.match_experience=init=0
+        self.match_experienceOverTime=init=[]
 
-        self.experience_diversity=self.init_dict(learner,init=[])
-        self.buffer_diversity=self.init_dict(learner,init=[])
-        self.Q_calls=self.init_dict(learner,init=0)
-        self.epsilon=self.init_dict_nops(learner,init=(0,0))
-        self.epsilonOverTime=self.init_dict_nops(learner,init=[])
+        self.experience_diversity=init=[]
+        self.buffer_diversity=init=[]
+        self.Q_calls=init=0
+        self.epsilon=(0,0)
+        self.epsilonOverTime=[]
 
-        self.Q_callsOverTime=self.init_dict(learner,init=[])
+        self.Q_callsOverTime=[]
 
-        self.loops=self.init_dict(learner,init=0)
-        self.loopsOverTime=self.init_dict(learner,init=[])
-        self.match_steps=self.init_dict(learner,init=0)
-        self.match_stepsOverTime=self.init_dict(learner,init=[])
-        self.until_time_steps=self.init_dict(learner,init=0)
-        self.until_time_stepsOverTime=self.init_dict(learner,init=[])
+        self.loops=init=0
+        self.loopsOverTime=[]
+        self.match_steps=init=0
+        self.match_stepsOverTime=[]
+        self.until_time_steps=init=0
+        self.until_time_stepsOverTime=[]
         if learner.Q_internal:
-            self.Qinternals=self.init_dict(learner,init=0)
-            self.QinternalsOverTime=self.init_dict(learner,init=[])
+            self.Qinternals=init=0
+            self.QinternalsOverTime=[]
 
     def initialise_statistics(self, numnets=1):
         IS_LearnerStatistics.initialise_statistics(self)
@@ -198,7 +198,6 @@ class SSA_gradientQ(SSA_with_WM):
         SSA_with_WM.__init__(self, **SSA_WM_Params)
 
         self.num_external_actions, self.external_actions = SSAimplementor.count_external_actions(external_actions)
-        assert self.episodic, "non-episodic not yet supported; need to include last_jump properly in circular buff"
         self.input_addresses = [a + self.Min for a in input_addresses]
         if self.use_jump_experience:
             self.last_jump=0
@@ -431,7 +430,6 @@ class SSA_gradientQ(SSA_with_WM):
 
     def setReward(self,reward):
         SSA_with_WM.setReward(self,reward)
-        self.stats.slicerewards[self.current_feature][self.current_Q_index]+=reward
 
     def setTerminalObservation(self, agent, environment):
         self.setObservation(agent, environment)
@@ -440,56 +438,49 @@ class SSA_gradientQ(SSA_with_WM):
     def printDevelopment(self):
         SSA_with_WM.printDevelopment(self)
         if self.t % self.stat_frequency==0:
-            # if self.t > 0:
-            #     print("matchjump" + str(self.stats.match_jumpexperienceOverTime[self.current_feature]))
-            #     print("matchtarget" + str(self.stats.match_experienceOverTime[self.current_feature]))
-            for task in self.tasks:
-                for i in range(len(self.Qlearners)):
-                    # don't reset slicerewards, just cumulate over time
-                    self.stats.slicerewardsOverTime[task][i].append(self.stats.slicerewards[task][i])
-                    b = 0 if self.stats.num_network_trainings[task][i] == 0 else self.stats.batch_size[task][i] / float(self.stats.num_network_trainings[task][i])
-                    self.stats.batch_sizeOverTime[task][i].append(b)
-                    self.stats.batch_size[task][i] = 0
+                    b = 0 if self.stats.num_network_trainings == 0 else self.stats.batch_size / float(self.stats.num_network_trainings)
+                    self.stats.batch_sizeOverTime.append(b)
+                    self.stats.batch_size = 0
 
-                    m = 0 if self.stats.match_experience[task][i] == 0 else self.stats.match_steps[task][i] / float(self.stats.match_experience[task][i])
-                    self.stats.match_stepsOverTime[task][i].append(m)
-                    self.stats.match_steps[task][i] = 0
+                    m = 0 if self.stats.match_experience == 0 else self.stats.match_steps / float(self.stats.match_experience)
+                    self.stats.match_stepsOverTime.append(m)
+                    self.stats.match_steps = 0
 
-                    u = 0 if self.stats.time_outs[task][i] == 0 else self.stats.until_time_steps[task][i] / float(self.stats.time_outs[task][i])
-                    self.stats.until_time_stepsOverTime[task][i].append(u)
-                    self.stats.until_time_steps[task][i] = 0
+                    u = 0 if self.stats.time_outs == 0 else self.stats.until_time_steps / float(self.stats.time_outs)
+                    self.stats.until_time_stepsOverTime.append(u)
+                    self.stats.until_time_steps = 0
 
-                    self.stats.loopsOverTime[task][i].append(self.stats.loops[task][i])
-                    self.stats.loops[task][i] = 0
+                    self.stats.loopsOverTime.append(self.stats.loops)
+                    self.stats.loops = 0
 
-                    self.stats.Q_callsOverTime[task][i].append(self.stats.Q_calls[task][i])
-                    self.stats.Q_calls[task][i] = 0
+                    self.stats.Q_callsOverTime.append(self.stats.Q_calls)
+                    self.stats.Q_calls = 0
 
-                    self.stats.num_experience_changesOverTime[task][i].append(self.stats.num_experience_changes[task][i])
-                    self.stats.num_experience_changes[task][i] = 0
+                    self.stats.num_experience_changesOverTime.append(self.stats.num_experience_changes)
+                    self.stats.num_experience_changes = 0
 
-                    self.stats.num_network_trainingsOverTime[task][i].append(self.stats.num_network_trainings[task][i])
-                    self.stats.num_network_trainings[task][i] = 0
+                    self.stats.num_network_trainingsOverTime.append(self.stats.num_network_trainings)
+                    self.stats.num_network_trainings = 0
 
-                    self.stats.time_outsOverTime[task][i].append(self.stats.time_outs[task][i])
-                    self.stats.time_outs[task][i] = 0
+                    self.stats.time_outsOverTime.append(self.stats.time_outs)
+                    self.stats.time_outs = 0
 
-                    self.stats.match_experienceOverTime[task][i].append(self.stats.match_experience[task][i])
-                    self.stats.match_experience[task][i] = 0
-                    self.stats.match_jumpexperienceOverTime[task][i].append(self.stats.match_jumpexperience[task][i])
-                    self.stats.match_jumpexperience[task][i] = 0
+                    self.stats.match_experienceOverTime.append(self.stats.match_experience)
+                    self.stats.match_experience = 0
+                    self.stats.match_jumpexperienceOverTime.append(self.stats.match_jumpexperience)
+                    self.stats.match_jumpexperience = 0
 
 
-                    if self.Qlearners[i].total_t > self.Qlearners[i].replay_start_size:
+                    if self.Qlearner.total_t > self.Qlearner.replay_start_size:
                         IPslice=self.ProgramStart+i*self.slice_size
-                        self.stats.experience_diversity[task][i].append(self.get_experience_diversity(self.experience_set[IPslice]))
-                        for j in range(len(self.experience_set[IPslice])):
-                            e = 0 if self.stats.epsilon[task][i][j][0] == 0 else self.stats.epsilon[task][i][j][0] / float(self.stats.epsilon[task][i][j][1])
-                            self.stats.epsilonOverTime[task][i][j].append(e)
-                            self.stats.epsilon[task][i][j] = (0., 0)
+                        self.stats.experience_diversity.append(self.get_experience_diversity(self.experience_set))
+                        for j in range(len(self.experience_set)):
+                            e = 0 if self.stats.epsilon[j][0] == 0 else self.stats.epsilon[j][0] / float(self.stats.epsilon[j][1])
+                            self.stats.epsilonOverTime[j].append(e)
+                            self.stats.epsilon[j] = (0., 0)
                     if self.Q_internal:
-                        self.stats.QinternalsOverTime[task][i].append(self.stats.Qinternals[task][i])
-                        self.stats.Qinternals[task][i] = 0
+                        self.stats.QinternalsOverTime.append(self.stats.Qinternals)
+                        self.stats.Qinternals = 0
 
     def is_P_modification(self, entry):
         return isinstance(entry, StackEntry)
@@ -1211,3 +1202,16 @@ class SSA_gradientQ(SSA_with_WM):
         argument_list = self.get_argument_list(agent, environment)
 
         self.chosenAction.perform(argument_list)  # record result for statistics
+
+    
+    def get_argument_list(self, agent, environment, additional_args=0):
+        if DEBUG_MODE:
+            print ("performing Action" + str(self.chosenAction.function.__name__))
+            print("arguments " + str(self.chosenAction.n_args))
+            print("additional args" + str(additional_args))
+        argument_list = self.currentInstruction[1:]
+        # print(type(self.chosenAction))
+        if (isinstance(self.chosenAction, ExternalAction)):
+            argument_list.extend([agent, environment])
+        
+        return argument_list
