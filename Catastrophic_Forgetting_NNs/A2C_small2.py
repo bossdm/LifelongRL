@@ -5,13 +5,13 @@ from __future__ import print_function
 import numpy as np
 import scipy.signal
 
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 import keras.backend as K
 from keras.models import load_model
 
-from CustomNetworks import entropy_regularisation,entropy_bonus
-from PPO_objective2 import Policy
+from Catastrophic_Forgetting_NNs.CustomNetworks import entropy_regularisation,entropy_bonus
+from Catastrophic_Forgetting_NNs.PPO_objective2 import Policy
 
 from overrides import overrides
 
@@ -218,7 +218,10 @@ class A2CAgent:
         return values
     # update policy network every N steps
     def train_model(self,terminal):
+
         episode_length = len(self.states)
+        #print("train model, episode length ", episode_length)
+        #print("train model, terminal ", terminal)
         state_inputs = np.zeros(((episode_length,) + self.state_size))  # Episode_lengthx4x64x64x3
 
         # Episode length is like the minibatch size in DQN
@@ -248,16 +251,16 @@ class A2CAgent:
 
 
 class PPO_Agent(A2CAgent):
-    def __init__(self, state_size, action_size, trace_length, episodic):
+    def __init__(self, state_size, action_size, trace_length, episodic,params):
         A2CAgent.__init__(self,state_size,action_size,trace_length,episodic)
-        self.init_PPO()
-    def init_PPO(self,filename=None):
-        self.update_freq=100
+        self.update_freq=1000
         self.lbda=.95
         self.epochs = 3
-        self.learning_rate=.00025
+        self.learning_rate=params['learning_rate']
+        self.init_PPO()
+    def init_PPO(self,filename=None,w=None):
         self.ppo=Policy(self.state_size,self.action_size,neurons=80,learning_rate=self.learning_rate,
-                        clipping=0.10,epochs=self.epochs,c1=1.0,c2=self.beta,filename=filename)
+                        clipping=0.10,epochs=self.epochs,c1=1.0,c2=self.beta,filename=filename,w=w)
 
 
     def get_advantages(self,terminal,values,episode_length):
@@ -269,6 +272,9 @@ class PPO_Agent(A2CAgent):
         # temporal differences
 
         next_vals= np.append(values[1:-1], self.gamma*self.get_final_value(values,terminal))
+        #print("reward",len(self.rewards))
+        #print("next_vals", len(next_vals))
+        #print("values", len(values[0:-1]))
         tds = np.array(self.rewards) + next_vals - values[0:-1]# r_t + V(s_{t+1}) - V(s_t)  (target - value)
         advantages = self.discount(tds, self.gamma * self.lbda)
 
@@ -329,6 +335,10 @@ class PPO_Agent(A2CAgent):
     # using the output of policy network, pick action stochastically (Stochastic Policy)
     def get_action(self, state):
         policy = self.ppo.get_probability(state).flatten()
+        if np.isnan(policy).any():
+            print("state",state)
+            print("policy:",policy)
+            print(self.ppo.get_all_weights_list())
         return np.random.choice(self.action_size, 1, p=policy)[0], policy
 
 

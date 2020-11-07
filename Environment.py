@@ -1,6 +1,8 @@
 
 import time
 import numpy as np
+
+import dill
 from abc import abstractmethod
 
 from overrides import overrides
@@ -10,14 +12,21 @@ from IS.SSA import SSA
 from StatsAndVisualisation.visual import IS_Visualisation, Visual
 from mapobjects import EmptyObject, Obstacle
 
-from ExperimentUtils import save_intermediate
+from ExperimentUtils import save_intermediate, read_incremental
+
+
+
+# Parallelizing using Pool.map()
+#from multiprocessing.pool import Pool
+#from ray import tune
+
 
 stops={1*10**6:"1Mil",30*10**6:'30Mil',60*10**6:'60Mil'}
 
 DEBUG_MODE=False
 #MAX_RUN_TIME=20
 class BaseEnvironment(object):
-
+    is_actor=False
     def __init__(self, agent, params, visual=False):
         self.interrupt = False  # was task interrupted or not
         self.visual = visual
@@ -30,12 +39,20 @@ class BaseEnvironment(object):
         self.real_time=params['real_time']
         self.timePolicy=RealTime if self.real_time else ExternalActionTime
         self.rng = np.random.RandomState(params['seed'])
-        self.agent = agent
+
         self.observation_length = params['observation_length']
+        self.agent = agent
         self.agent.learner.observation = np.zeros(self.observation_length)
         self.current_sample=None if not self.real_time else 1 #use to count samples
         self.t = 0
         self.real_t = 0
+    def save_agent(self,filename,save_learner):
+        if save_learner:
+            self.agent.learner.save(filename)
+        else:
+            self.agent.learner = None
+    def is_actor(self):
+        return False
     def set_tasks(self,tasks,statfreq):
         self.slices = 5
 
@@ -68,8 +85,9 @@ class BaseEnvironment(object):
 
         while (self.tasks and time.time() - self.start < self.running_time and self.t < self.stoptime):
 
-            #if not self.interrupt:  # if environment was interrupted just keep going with the current task !
+            #if not self.interrupt:  # if environment was not interrupted just keep going with the current task !
             if not self.interrupt:
+                print("popping new task")
                 self.currentTask = self.tasks.pop(0)
                 self.currentTask.initialize(self)  # in case you interrupted
 
@@ -352,12 +370,6 @@ class Task(object):
 
 
 
-
-
-
-
-
-
     def check_environment_interrupt(self,environment):
         if time.time() -environment.start >= environment.running_time:
             self.interrupt=True
@@ -368,37 +380,52 @@ class Task(object):
     def iteration(self,environment):
         self.tick(environment)
 
+    def synchronise_learners(self,environments):
+        for i in range(1,len(environments)):
+            environments[i].t= environments
+
+    def task_stop(self,environment):
+        return not environment.timePolicy.timeCriterion(environment) or self.solved
+
+    def must_stop(self,environment):
+        if environment.is_actor() and environment.agent.learner.time_to_update():
+            return True
+        else:
+            return self.task_stop(environment)
+
     def run(self,environment):
 
         print("end= %d" %(self.end_time))
         self.interrupt=False
         stop=False
         while(not stop):
-
             self.check_environment_interrupt(environment)
 
             if self.interrupt:
-                print("interrupted")
+                #print("interrupted")
                 environment.interrupt=True
-                return
+                if not environment.is_actor(): #otherwise wait for the update
+                    return
             if DEBUG_MODE:
                 print("LoopT:"+str(environment.t))
                 print("endtime"+str(self.end_time))
+
+            #print("before tick")
             environment.tick()
+            #print("after tick")
             term=environment.terminal
             environment.reset()
             if environment.timePolicy.sampleCondition(environment):
                 environment.agent.learner.printDevelopment()
-            if not environment.timePolicy.timeCriterion(environment) or self.solved:
+            if self.must_stop(environment):
+                print("must stop")
                 stop=True# prepare to stop don't do yet because need to check for intermediate saves
             else:
                 if term:
                     environment.agent.learner.new_elementary_task()
 
 
-
-
-            if environment.t in stops.keys():
+            if environment.t in stops.keys() and self.num_actors==1: # disable stop-saves with multiple actors
                 save_intermediate(environment, environment.filename + stops[environment.t], save_stats=False,
                                   save_learner=True)
                 environment.agent.learner.load(environment.filename + stops[environment.t])
@@ -409,7 +436,6 @@ class Task(object):
 
         if self.generate_new and self.solved:
             environment.newTask()
-
 
 class NonInterruptibleTask(Task):
     def __init__(self, reward_fun, end_time, environment=None, generate_new=False):
@@ -477,15 +503,24 @@ class MultiTask(NavigationTask):
         learner.end_task()
 
     def initialize(self,environment):
+
         if not self.initialized:
+            print("init multitask")
             environment.generateMap()
             self.new_task(environment.agent.learner)
             environment.agent.learner.new_elementary_task()
-            self.initialized = True
         environment.terminal = False
+        self.initialized = True
     def run(self,environment):
-        Task.run(self,environment)
-        self.end_task(environment.agent.learner)
+        if environment.num_actors > 1:
+            print("will run multiple actors")
+            environment.run_workers()
+
+        else:
+            print("will run single actor")
+            Task.run(self,environment)
+        if self.task_stop(environment):
+            self.end_task(environment.agent.learner)
     def __str__(self):
         return "Multi-task with task feature %s, task type %s, topology %s and start_time %d"%\
         (str(self.task_feature),self.task_type,self.topology_type,self.start_time)

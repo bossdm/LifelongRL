@@ -274,7 +274,7 @@ class DoubleDRQNAgent:
     q=None
     episodic = False
     def __init__(self, state_size, action_size, trace_length, batch_size=None,episodic=True,
-                 double=False, init_epsilon=None, final_epsilon=None):
+                 double=False, init_epsilon=None, final_epsilon=None, learning_rate=0.10):
         """
 
         :param state_size:  (trace_length, img_rows, img_cols, img_channels)
@@ -674,7 +674,7 @@ class MultiTaskDoubleDRQNAgent(DoubleDRQNAgent):
         return np.max(target[-1, -1]), loss
 
 def main():
-    import tensorflow as tf
+    import tensorflow.compat.v1 as tf
     # Avoid Tensorflow eats up GPU memory
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True

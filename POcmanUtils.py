@@ -8,18 +8,464 @@ from ExperimentUtils import dump_incremental
 from StatsAndVisualisation.Statistics import POcmanMeltingPotStatistics
 from random import randint
 
-
-
+from Agents.Agents import PacmanAgent
 from overrides import overrides
 from mapobjects import EmptyObject, PacmanFood, PacmanPoison,NormalGhost, ChasedGhost, Power, Obstacle
 from MazeUtils import manhattan_dist, directions, directional_dist, opposite_direction, VonNeumannNeighbourhoodPlus, \
     check_toroid_X, check_toroid_Y
 
 from mapobjects import *
-
+import ray
 DEBUG_MODE = False
-
+STOPTIME = 2000000 #just a default
+SAMPLING_RATE= 10000
 from POcmanEnums import *
+
+
+
+from os import getpid
+
+
+
+import os
+from Configs.InstructionSetsMultiExp import *
+
+
+
+
+def get_SSA_configs(SSA_WM_Params,filename,num_PLAs,episodic):
+    SSA_WM_Params['episodic'] = episodic
+    enhance_PLA = 20
+    SSA_WM_Params['filename'] = filename
+    SSA_WM_Params['enhance_PLA'] = enhance_PLA / num_PLAs if not pacmanparams['real_time'] else 0
+    SSA_WM_Params['jump_at_reset'] = False
+
+    print("enhance PLA = " + str(SSA_WM_Params['enhance_PLA']))
+
+def get_TaskBasedSSA_configs(SSA_WM_Params,filename,num_PLAs):
+    get_SSA_configs(SSA_WM_Params,filename,num_PLAs,episodic=False)
+    SSA_WM_Params['internal_actionsSSA'].update(TaskBasedSMP_DRQN_actionset)
+    SSA_WM_Params['wm_cells'] = 100
+    SSA_WM_Params['num_program'] = 80
+    SSA_WM_Params['actions'] = []
+    # SSA_WM_Params['num_inputs'] = 11  # loss and Qmax
+    SSA_WM_Params['enhance_PLA']=5 # total of 16+2 self-mod + 4 param mods
+
+def get_TaskBasedSSA_configsINC(SSA_WM_Params,filename,num_PLAs):
+    get_SSA_configs(SSA_WM_Params,filename,num_PLAs,episodic=False)
+    SSA_WM_Params['internal_actionsSSA'].update(TaskBasedSMP_DRQN_actionsetINC)
+    SSA_WM_Params['wm_cells'] = 100
+    SSA_WM_Params['num_program'] = 80
+    SSA_WM_Params['actions'] = []
+    # SSA_WM_Params['num_inputs'] = 11  # loss and Qmax
+    SSA_WM_Params['enhance_PLA']=5 # total of 16+2 self-mod + 4 param mods
+
+def get_TaskBasedSSA_nostack_configs(SSA_WM_Params,filename,num_PLAs):
+    get_SSA_configs(SSA_WM_Params,filename,num_PLAs,episodic=False)
+    SSA_WM_Params['internal_actionsSSA'].update(TaskBasedSMP_DRQN_NOSTACK_actionset)
+    SSA_WM_Params['wm_cells'] = 100
+    SSA_WM_Params['num_program'] = 80
+    SSA_WM_Params['actions'] = []
+    SSA_WM_Params['num_inputs'] = 2  # loss and Qmax
+    SSA_WM_Params['enhance_PLA']=5 # total of 16+2 self-mod + 4 param mods
+
+def get_SSA_Fixed_configs(num_PLAs,filename):
+    enhance_PLA = 18
+    SSANeat_Params['internal_actionsNEAT'] = internalActionsNEATfixed
+    n_input = SSA_WM_Params['num_inputs'] + 4 + SSA_WM_Params['additional_inputs']
+    SSA_WM_Params['enhance_PLA'] = enhance_PLA / num_PLAs if not pacmanparams['real_time'] else 0
+    print("enhance PLA = " + str(SSA_WM_Params['enhance_PLA']))
+    SSA_WM_Params['filename'] = filename
+    # del SSA_WM_Params['internal_actionsSSA']["endSelfMod"]
+    config = {'input_range': range(n_input), 'instruction_set': SSANeat_Params['instruction_sets'],
+              'types': ['sigmoid'],
+              'input_type': 'ident',
+              'probabilistic': False, 'feedforward': True,
+              'topology': [80, 80]}  #approximately same topology as DRQN one
+    configs = getIS_NEAT_configs(config, SSANeat_Params)
+    return configs
+
+
+def get_DRQN_configs(inputs,externalActions,filename,episodic):
+    d=get_DRQN_agent_configs(inputs, externalActions, filename, episodic)
+    d.update({'file': filename, 'loss': None})
+    return d
+def get_DRQN_agent_configs(inputs,externalActions,filename,episodic):
+    if os.environ["tuning_lr"]:
+        lr=float(os.environ["tuning_lr"])
+    else:
+        lr=0.10
+    return  {'num_neurons':80,'task_features': [], 'use_task_bias': False,
+                   'use_task_gain': False, 'n_inputs': inputs, 'trace_length': 15,
+                   'actions': deepcopy(externalActions),'episodic': episodic,
+                'target_model':True,'init_epsilon':.20,'final_epsilon':.20,'epsilon_change':False,"learning_rate":lr}
+def get_A2C_configs(inputs,externalActions, filename, episodic):
+    paramsdict={}
+    if os.environ["tuning_lr"]:
+        paramsdict["learning_rate"]=float(os.environ["tuning_lr"])
+    else:
+        paramsdict["learning_rate"]=0.00025
+    return {'num_neurons': 80, 'task_features': [], 'use_task_bias': False,
+            'use_task_gain': False, 'n_inputs': inputs, 'trace_length': 15,
+            'actions': deepcopy(externalActions), 'episodic': episodic,'file':filename, 'params':paramsdict
+            }
+def get_SMP_DRQN_configs(SMP_DRQN_actions,SSA_WM_Params,num_PLAs,filename,num_inputs,externalActions,episodic):
+    enhance_PLA = 18
+
+    SSA_WM_Params['episodic'] = episodic
+    SSA_WM_Params['filename'] = filename
+    SSA_WM_Params['enhance_PLA'] = enhance_PLA / num_PLAs if not pacmanparams['real_time'] else 0
+    print("enhance PLA = " + str(SSA_WM_Params['enhance_PLA']))
+    input_addresses = range(4, 4+num_inputs)
+    DRQN_params=get_DRQN_agent_configs(num_inputs,externalActions,filename,episodic)
+    del DRQN_params['epsilon_change'] # not used in SMP-DRQN
+    from IS.SSA_gradientQ import ConversionType
+    SSA_WM_Params['internal_actionsSSA'].update(SMP_DRQN_actions)
+    fixed_training=False if 'train_replay' in SMP_DRQN_actions else True
+    SSANeat_Params['internal_actionsNEAT'] = internalActionsNEATfixed
+    # config = {'input_range': [2]+input_addresses, 'instruction_set': SSANeat_Params['instruction_sets'], #2 is for IP
+    #           'types': ['sigmoid'],
+    #           'input_type': 'ident',
+    #           'probabilistic': True, 'feedforward': True,
+    #           'topology': [10, 10]}
+    # configs = getIS_NEAT_configs(config, SSANeat_Params)
+    return {'n_outputs':len(externalActions),'trace_length':DRQN_params['trace_length'],
+            'input_addresses':input_addresses, 'conversion_type':ConversionType.double_index,
+            'SSA_WM_Params':SSA_WM_Params,'Q_internal':False,
+                 'fixed_training':fixed_training,'intervals':loss_intervals,
+           'DRQN_params':DRQN_params,'init_with_training_freq': True}
+           # 'SSA_NEAT_Params':SSANeat_Params, 'NEAT_configs':configs}
+
+
+
+
+def get_method(methodname,externalActions,filename,num_PLAs,pacmanparams,inputs,conservative,episodic=True):
+
+    print("EPISODIC="+str(episodic))
+    if methodname == 'RandomLearner':
+        method = RandomLearner(externalActions, filename)
+
+    #####################################################################################################
+
+    elif methodname == "PPO2":
+        from Catastrophic_Forgetting_NNs.A2C_Learner2 import PPO_Learner
+        settings=get_A2C_configs(inputs,externalActions,filename,episodic)
+        method = PPO_Learner( **settings)
+
+    elif methodname == "MultiActorPPO2":
+        from Catastrophic_Forgetting_NNs.PPO_MultiActor import PPO_MultiActor
+        settings=get_A2C_configs(inputs,externalActions,filename,episodic)
+        method = PPO_MultiActor(settings)
+
+
+    elif methodname == "TaskDrift_PPO2":
+        from Lifelong.HomeostaticPols import HomeostaticPol
+        from Lifelong.TaskDrift_PPO2 import TaskDriftPPO
+
+
+
+        num_pols = args.policies
+        pols = [None] * num_pols
+        for pol in range(num_pols):
+            settings = get_A2C_configs(inputs, externalActions, filename, episodic)
+
+            pols[pol] = TaskDriftPPO(settings)
+        method = HomeostaticPol(episodic=episodic, actions=externalActions, filename=filename, pols=pols, weights=None,
+                                **homeostatic_params)
+
+
+    elif methodname == "1to1_PPO2":
+        from Lifelong.HomeostaticPols import HomeostaticPol
+        from Lifelong.TaskDrift_PPO2 import TaskDriftPPO
+
+
+
+        num_pols = args.policies
+        pols = [None] * num_pols
+        for pol in range(num_pols):
+            settings = get_A2C_configs(inputs, externalActions, filename, episodic)
+
+            pols[pol] = TaskDriftPPO(settings)
+        homeostatic_params['one_to_one']=True
+        method = HomeostaticPol(episodic=episodic, actions=externalActions, filename=filename, pols=pols, weights=None,
+                                **homeostatic_params)
+
+
+    elif methodname == "Unadaptive_PPO2":
+        from Lifelong.HomeostaticPols import HomeostaticPol
+        from Lifelong.TaskDrift_PPO2 import TaskDriftPPO
+
+
+
+        num_pols = args.policies
+        pols = [None] * num_pols
+        for pol in range(num_pols):
+            settings = get_A2C_configs(inputs, externalActions, filename, episodic)
+
+            pols[pol] = TaskDriftPPO(settings)
+        homeostatic_params['unadaptive']=True
+        method = HomeostaticPol(episodic=episodic, actions=externalActions, filename=filename, pols=pols, weights=None,
+                                **homeostatic_params)
+
+
+
+
+
+
+    elif methodname == "DRQN":
+
+        from Catastrophic_Forgetting_NNs.DRQN_Learner import DRQN_Learner
+        settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
+        method = DRQN_Learner( **settings)
+    elif methodname == "TaskDriftInit_DRQN":
+        from Lifelong.HomeostaticPols import HomeostaticPol
+        from Lifelong.TaskDriftDRQN import TaskDriftMultiTaskDRQN
+        num_pols = args.policies
+        pols = [None] * num_pols
+        for pol in range(num_pols):
+            task_features = []
+
+            # task_features, use_task_bias, use_task_gain, n_inputs, trace_length, actions, file, episodic, loss = None
+            DRQN_params=get_DRQN_configs(inputs,externalActions,filename,episodic)
+            pols[pol] = TaskDriftMultiTaskDRQN(DRQN_params)
+        homeostatic_params['initialise_unseen'] = True
+        method = HomeostaticPol(episodic=episodic, actions=externalActions, filename=filename, pols=pols, weights=None,
+                                **homeostatic_params)
+    elif methodname == "1to1_DRQN":
+        from Lifelong.HomeostaticPols import HomeostaticPol
+        from Lifelong.TaskDriftDRQN import TaskDriftDRQN
+        args.policies=18
+        # batch_size=32
+        num_pols = args.policies
+        pols = [None] * num_pols
+        for pol in range(num_pols):
+            task_features = []
+
+            # task_features, use_task_bias, use_task_gain, n_inputs, trace_length, actions, file, episodic, loss = None
+            DRQN_params=get_DRQN_configs(inputs,externalActions,filename,episodic)
+            pols[pol] = TaskDriftDRQN(DRQN_params)
+        homeostatic_params['one_to_one']=True
+        method = HomeostaticPol(episodic=episodic, actions=externalActions, filename=filename, pols=pols, weights=None,
+                                **homeostatic_params)
+    elif methodname == "Unadaptive_DRQN":
+        from Lifelong.HomeostaticPols import HomeostaticPol
+        from Lifelong.TaskDriftDRQN import TaskDriftDRQN
+        # batch_size=32
+        num_pols = args.policies
+        pols = [None] * num_pols
+        for pol in range(num_pols):
+            task_features = []
+
+            # task_features, use_task_bias, use_task_gain, n_inputs, trace_length, actions, file, episodic, loss = None
+            DRQN_params=get_DRQN_configs(inputs,externalActions,filename,episodic)
+            pols[pol] = TaskDriftDRQN(DRQN_params)
+        homeostatic_params['unadaptive']=True
+        method = HomeostaticPol(episodic=episodic, actions=externalActions, filename=filename, pols=pols, weights=None,
+                                **homeostatic_params)
+    elif methodname == "TaskDrift_DRQN":
+        from Lifelong.HomeostaticPols import HomeostaticPol
+        from Lifelong.TaskDriftDRQN import TaskDriftDRQN
+
+        # batch_size=32
+        num_pols = args.policies
+        pols = [None] * num_pols
+        for pol in range(num_pols):
+            task_features = []
+
+            # task_features, use_task_bias, use_task_gain, n_inputs, trace_length, actions, file, episodic, loss = None
+            DRQN_params=get_DRQN_configs(inputs,externalActions,filename,episodic)
+            pols[pol] = TaskDriftDRQN(DRQN_params)
+
+        method = HomeostaticPol(episodic=episodic, actions=externalActions, filename=filename, pols=pols, weights=None,
+                                **homeostatic_params)
+
+
+    elif methodname == "TaskDriftInit_DRQN":
+        from Lifelong.HomeostaticPols import HomeostaticPol
+        from Lifelong.TaskDriftDRQN import TaskDriftDRQN
+
+        # batch_size=32
+        num_pols = args.policies
+        pols = [None] * num_pols
+        for pol in range(num_pols):
+            task_features = []
+
+            # task_features, use_task_bias, use_task_gain, n_inputs, trace_length, actions, file, episodic, loss = None
+            DRQN_params=get_DRQN_configs(inputs,externalActions,filename,episodic)
+            pols[pol] = TaskDriftDRQN(DRQN_params)
+        homeostatic_params['initialise_unseen']=True
+        method = HomeostaticPol(episodic=episodic, actions=externalActions, filename=filename, pols=pols, weights=None,
+                                **homeostatic_params)
+    elif methodname == "TaskDriftInitAndOffline_DRQN":
+        from Lifelong.HomeostaticPols import HomeostaticPol
+        from Lifelong.TaskDriftDRQN import TaskDriftDRQN
+
+        # batch_size=32
+        num_pols = args.policies
+        pols = [None] * num_pols
+        for pol in range(num_pols):
+            task_features = []
+
+            # task_features, use_task_bias, use_task_gain, n_inputs, trace_length, actions, file, episodic, loss = None
+            DRQN_params=get_DRQN_configs(inputs,externalActions,filename,episodic)
+            pols[pol] = TaskDriftDRQN(DRQN_params)
+        homeostatic_params['initialise_unseen']=True
+        homeostatic_params['offline_updates'] = True
+        method = HomeostaticPol(episodic=episodic, actions=externalActions, filename=filename, pols=pols, weights=None,
+                                **homeostatic_params)
+
+
+    #############################################################################
+
+    elif methodname == 'SSA_WM':
+        get_SSA_configs(SSA_WM_Params,filename,num_PLAs,episodic)
+        method = SSA_with_WM(**SSA_WM_Params)
+    elif methodname == 'SSA_gradientQsequence':
+        from IS.SSA_gradientQ import SSA_gradientQ
+        settings=get_SMP_DRQN_configs(SMP_DRQN_actions=internalActionsGradientQsequence,SSA_WM_Params=SSA_WM_Params,
+                                      num_PLAs=num_PLAs,filename=filename,num_inputs=inputs,externalActions=externalActions,
+                                      episodic=episodic)
+        method = SSA_gradientQ(**settings)
+    elif methodname == 'TraditionalSSA_gradientQsequence':
+        from IS.SSA_gradientQ import SSA_gradientQ
+        settings=get_SMP_DRQN_configs(SMP_DRQN_actions=internalActionsGradientQsequenceTrainReplay,SSA_WM_Params=SSA_WM_Params,
+                                      num_PLAs=num_PLAs,filename=filename,num_inputs=inputs,externalActions=externalActions,
+                                      episodic=episodic)
+        SSA_WM_Params['conservative']=False
+    elif methodname=="TaskBasedSMP_DRQN_nolearning":
+        from Lifelong.TaskNGoalBasedExploration import TaskBasedSMP_DRQN,LearningType
+        configs=get_DRQN_configs(inputs,externalActions,filename,episodic)
+
+        get_TaskBasedSSA_configs(SSA_WM_Params, filename, num_PLAs)
+
+        method = TaskBasedSMP_DRQN(LearningType.none,SSA_WM_Params,configs)
+    elif methodname == "TaskBasedSMP_DRQN":
+        from Lifelong.TaskNGoalBasedExploration import TaskBasedSMP_DRQN, LearningType
+        configs=get_DRQN_configs(inputs,externalActions,filename,episodic)
+
+        get_TaskBasedSSA_configs(SSA_WM_Params, filename, num_PLAs)
+        method = TaskBasedSMP_DRQN(LearningType.taskbased, SSA_WM_Params, configs, reward_type="reward")
+    elif methodname == "TaskBasedSMP_DRQN_lifetime":
+        from Lifelong.TaskNGoalBasedExploration import TaskBasedSMP_DRQN, LearningType
+        configs=get_DRQN_configs(inputs,externalActions,filename,episodic)
+
+        get_TaskBasedSSA_configs(SSA_WM_Params, filename, num_PLAs)
+
+        method = TaskBasedSMP_DRQN(LearningType.lifetime, SSA_WM_Params, configs, reward_type="reward")
+    elif methodname == "TaskBasedSMP_DRQN_lifetimeTaskspecific":
+        from Lifelong.TaskNGoalBasedExploration import TaskBasedSMP_DRQN, LearningType
+        configs=get_DRQN_configs(inputs,externalActions,filename,episodic)
+
+        get_TaskBasedSSA_configs(SSA_WM_Params, filename, num_PLAs)
+        taskspecificSSAparams={'weighting_type':'fixed','absolute':True,'SSA_with_WMparams':SSA_WM_Params}
+
+        method = TaskBasedSMP_DRQN(LearningType.lifetime_taskspecific, taskspecificSSAparams, configs, reward_type="reward")
+    elif methodname == "TaskBasedSMP_DRQN_lifetimeTaskspecificRelative":
+        from Lifelong.TaskNGoalBasedExploration import TaskBasedSMP_DRQN, LearningType
+        configs=get_DRQN_configs(inputs,externalActions,filename,episodic)
+
+        get_TaskBasedSSA_configs(SSA_WM_Params, filename, num_PLAs)
+        taskspecificSSAparams = {'weighting_type': 'fixed', 'absolute': False, 'SSA_with_WMparams': SSA_WM_Params}
+        method = TaskBasedSMP_DRQN(LearningType.lifetime_taskspecificrelative, taskspecificSSAparams, configs, reward_type="reward")
+
+    elif methodname == "TaskBasedSMP_DRQN_inc":
+        from Lifelong.TaskNGoalBasedExploration import TaskBasedSMP_DRQN, LearningType
+        configs = get_DRQN_configs(inputs, externalActions, filename, episodic)
+
+        get_TaskBasedSSA_configsINC(SSA_WM_Params, filename, num_PLAs)
+        method = TaskBasedSMP_DRQN(LearningType.taskbased, SSA_WM_Params, configs, reward_type="reward")
+    elif methodname == "TaskBasedSMP_DRQN_l_inc":
+        from Lifelong.TaskNGoalBasedExploration import TaskBasedSMP_DRQN, LearningType
+        configs = get_DRQN_configs(inputs, externalActions, filename, episodic)
+
+        get_TaskBasedSSA_configsINC(SSA_WM_Params, filename, num_PLAs)
+
+        method = TaskBasedSMP_DRQN(LearningType.lifetime, SSA_WM_Params, configs, reward_type="reward")
+
+    elif methodname == "SingleSMP_DRQN_lifetime":
+        from Lifelong.TaskNGoalBasedExploration import TaskBasedSMP_DRQN, LearningType
+        configs=get_DRQN_configs(inputs,externalActions,filename,episodic)
+
+        get_TaskBasedSSA_configs(SSA_WM_Params, filename, num_PLAs)
+
+        method = TaskBasedSMP_DRQN(LearningType.single_lifetime, SSA_WM_Params, configs, reward_type="reward")
+    elif methodname == "SingleSMP_DRQN_lifetimeTaskspecific":
+        from Lifelong.TaskNGoalBasedExploration import TaskBasedSMP_DRQN, LearningType
+        configs=get_DRQN_configs(inputs,externalActions,filename,episodic)
+
+        get_TaskBasedSSA_configs(SSA_WM_Params, filename, num_PLAs)
+        taskspecificSSAparams={'weighting_type':'fixed','absolute':True,'SSA_with_WMparams':SSA_WM_Params}
+
+        method = TaskBasedSMP_DRQN(LearningType.single_lifetimetaskspecific, taskspecificSSAparams, configs, reward_type="reward")
+    elif methodname == "SingleSMP_DRQN_lifetimeTaskspecificRelative":
+        from Lifelong.TaskNGoalBasedExploration import TaskBasedSMP_DRQN, LearningType
+        configs=get_DRQN_configs(inputs,externalActions,filename,episodic)
+
+        get_TaskBasedSSA_configs(SSA_WM_Params, filename, num_PLAs)
+        taskspecificSSAparams = {'weighting_type': 'fixed', 'absolute': False, 'SSA_with_WMparams': SSA_WM_Params}
+        method = TaskBasedSMP_DRQN(LearningType.single_lifetimetaskspecificrelative, taskspecificSSAparams, configs, reward_type="reward")
+
+    elif methodname == "SingleSMP_DRQN_inc":
+        from Lifelong.TaskNGoalBasedExploration import TaskBasedSMP_DRQN, LearningType
+        configs = get_DRQN_configs(inputs, externalActions, filename, episodic)
+
+        get_TaskBasedSSA_configsINC(SSA_WM_Params, filename, num_PLAs)
+
+        method = TaskBasedSMP_DRQN(LearningType.single_lifetime, SSA_WM_Params, configs, reward_type="reward")
+    elif methodname == "SingleSMP_DRQN_Taskspecific_inc":
+        from Lifelong.TaskNGoalBasedExploration import TaskBasedSMP_DRQN, LearningType
+        configs = get_DRQN_configs(inputs, externalActions, filename, episodic)
+
+        get_TaskBasedSSA_configsINC(SSA_WM_Params, filename, num_PLAs)
+        taskspecificSSAparams = {'weighting_type': 'fixed', 'absolute': True, 'SSA_with_WMparams': SSA_WM_Params}
+
+        method = TaskBasedSMP_DRQN(LearningType.single_lifetimetaskspecific, taskspecificSSAparams, configs,
+                                   reward_type="reward")
+    elif methodname == "SingleSMP_DRQN_TaskspecificRelative_inc":
+        from Lifelong.TaskNGoalBasedExploration import TaskBasedSMP_DRQN, LearningType
+        configs = get_DRQN_configs(inputs, externalActions, filename, episodic)
+
+        get_TaskBasedSSA_configsINC(SSA_WM_Params, filename, num_PLAs)
+        taskspecificSSAparams = {'weighting_type': 'fixed', 'absolute': False, 'SSA_with_WMparams': SSA_WM_Params}
+        method = TaskBasedSMP_DRQN(LearningType.single_lifetimetaskspecificrelative, taskspecificSSAparams, configs,
+                                   reward_type="reward")
+
+
+
+    elif methodname == "TaskBasedSMP_DRQN_lossbased":
+        from Lifelong.TaskNGoalBasedExploration import TaskBasedSMP_DRQN, LearningType
+        configs=get_DRQN_configs(inputs,externalActions,filename,episodic)
+
+        get_TaskBasedSSA_configs(SSA_WM_Params, filename, num_PLAs)
+        method = TaskBasedSMP_DRQN(LearningType.taskbased, SSA_WM_Params, configs, reward_type="loss")
+    elif methodname == "TaskBasedSMP_DRQN_lifetime_lossbased":
+        from Lifelong.TaskNGoalBasedExploration import TaskBasedSMP_DRQN, LearningType
+        configs=get_DRQN_configs(inputs,externalActions,filename,episodic)
+
+        get_TaskBasedSSA_configs(SSA_WM_Params, filename, num_PLAs)
+
+        method = TaskBasedSMP_DRQN(LearningType.lifetime, SSA_WM_Params, configs, reward_type="loss")
+    elif methodname == "TaskBasedSMP_DRQN_lifetimeTaskspecific_lossbased":
+        from Lifelong.TaskNGoalBasedExploration import TaskBasedSMP_DRQN, LearningType
+        configs=get_DRQN_configs(inputs,externalActions,filename,episodic)
+
+        get_TaskBasedSSA_configs(SSA_WM_Params, filename, num_PLAs)
+        taskspecificSSAparams={'weighting_type':'fixed','absolute':True,'SSA_with_WMparams':SSA_WM_Params}
+
+        method = TaskBasedSMP_DRQN(LearningType.lifetime_taskspecific, taskspecificSSAparams, configs, reward_type="loss")
+    elif methodname == "TaskBasedSMP_DRQN_lifetimeTaskspecificRelative_lossbased":
+        from Lifelong.TaskNGoalBasedExploration import TaskBasedSMP_DRQN, LearningType
+        configs=get_DRQN_configs(inputs,externalActions,filename,episodic)
+
+        get_TaskBasedSSA_configs(SSA_WM_Params, filename, num_PLAs)
+        taskspecificSSAparams = {'weighting_type': 'fixed', 'absolute': False, 'SSA_with_WMparams': SSA_WM_Params}
+        method = TaskBasedSMP_DRQN(LearningType.lifetime_taskspecificrelative, taskspecificSSAparams, configs, reward_type="loss")
+
+    else:
+        raise Exception("methodname %s not found" % (methodname))
+
+
+    return method
 
 class POcman(NavigationEnvironment):
     add_task_features = False
@@ -37,12 +483,11 @@ class POcman(NavigationEnvironment):
     old_F = None
     oldx = None
     oldy = None
-    def __init__(self, agent, visual, params):
+    def __init__(self, agent, visual, params,actor_index=0):
         self.terminal = False
-        NavigationEnvironment.__init__(self, agent, visual, params)
 
 
-        self.maze = np.zeros((self.sizeX, self.sizeY))
+
         #self.passage_y = -1
         self.smell_range = 1
         self.hear_range = 2
@@ -67,7 +512,66 @@ class POcman(NavigationEnvironment):
         self.num_food=0
         self.num_poison=0
         self.num_ghosts=0
+        if actor_index>0:
+            self.num_actors = 1# avoid infinite recursion
+            self._is_actor=True
+            prefix = params["filename"] + "worker"
+            i = actor_index
+            filename = prefix + str(i-1) + "R.txt"
+            method = get_method(**agent)
+            agent = PacmanAgent(method, params)
+            # agent.learner.mazefile = open(prefix + "maze" + str(i) + ".txt", "w")
+            agent.learner.Rfile = open(filename,"a")
+        else:
+            self._is_actor=False
+            self.num_actors = params["num_actors"] if 'num_actors' in params else 1
+            if self.num_actors>1:
+                self.params = params
+                self.agent_dict = agent
+                method = get_method(**agent)
+                agent = PacmanAgent(method, params)
 
+
+
+
+
+        NavigationEnvironment.__init__(self, agent, visual, params)
+        self.maze = np.zeros((self.sizeX, self.sizeY))
+    @overrides
+    def is_actor(self):
+        return self._is_actor
+    def run_workers(self):
+
+        for actor in self.actors:
+            print("set task")
+            ray.get(actor.set_task.remote(deepcopy(self.currentTask),self.running_time,self.t))
+        stop=False
+        while not stop:
+            #get global weights
+            w = self.agent.learner.get_weights()
+            #print(w)
+            #let actors work
+            update_states=[]
+            for actor in self.actors:
+                #actor.hello.remote()
+                # set weights of the actors
+                ray.get(actor.set_weights.remote(w))
+                #print(w)
+                #run the actor
+                stop=ray.get(actor.run_individual_worker.remote())
+                update_states.append(ray.get(actor.get_update_states.remote()))
+
+            #ready_ids, remaining_ids = ray.wait(update_states, num_returns=POcman.num_actors)
+            # update the shared learner
+            for terminal, update_state in update_states:
+                print("length of update_state=", len(update_state[0]))
+                self.agent.learner.process_update_states(update_state)
+                #print("states outside=\n",self.agent.learner.update_states())
+                if terminal:
+                    self.agent.learner.update_model(True)
+                else:
+                    self.agent.learner.update_model(False)
+        self.t = ray.get(self.actors[0].get_time.remote())
     def get_map(self, x, y):
         return self.map_flag_to_mapel(x,y)
     @overrides
@@ -344,6 +848,7 @@ class POcman(NavigationEnvironment):
             if self.t > 0:
                 #self.currentCount = self.maxCount + 1
                 self.agent.learner.setTerminalObservation(self.agent, self)  # set the final observation
+                print("added terminal obs")
         self.agent.learner.reset()
         self.currentTask.start_time=self.t
 
@@ -1166,8 +1671,8 @@ def reward_fun_pocman(agent, environment):
                 print("clear level (all food gone), %d" % (environment.reward_clearlevel))
     # check time up or no
     if environment.time_up():
-        if DEBUG_MODE:
-            print("final time of the elementary task at time %d" % (environment.t))
+        # if DEBUG_MODE:
+        print("final time of the elementary task at time %d" % (environment.t))
         environment.terminal=True
     if environment.currentTask.task_type == PacmanTaskType.MELTINGPOT:
         if environment.currentTask.task_feature[0]==1.:
@@ -1176,12 +1681,112 @@ def reward_fun_pocman(agent, environment):
             assert reward==0 or reward==-1
     return reward
 
+@ray.remote
+class POcmanActor(POcman):
+    def __init__(self, agent_params, visual, params, index):
+
+        print("start init")
+        POcman.__init__(self, agent_params,visual, params,actor_index=index)
+        self.use_stats = False
+        self.agent.learner.did_terminal = False
+        print("Finished init")
 
 
+    def hello(self):
+        print("hello")
+    def set_task(self,currentTask,running_time,t):
+        self.currentTask = currentTask
+        self.currentTask.initialized = False
+        self.currentTask.initialize(self)
+        print(self.currentTask)
+        self.running_time=running_time
+        self.agent.learner.total_t = t
+        self.agent.total_t = t
+        self.agent.learner.t = 0
+        self.agent.t = 0
+        self.t = t
+        #self.initialize_task(self.currentTask)
+    def run_individual_worker(self):
 
+        self.agent.learner.update_time = False
+        print("I'm process", getpid(), "starting to run task")
+        print(self.currentTask)
+        print("initialized task",self.currentTask.initialized)
+        self.currentTask.run(self)
+        #print("I'm process", getpid(),  " time to update")
+        interrupt = self.interrupt
+        self.interrupt = False # reset because the task is finished and this means we should pop the next task when resuming
+        return self.task_stop() or interrupt
+    def task_stop(self):
+        print("environment t: "+str(self.t))
+        print("environment end_time: " + str(self.currentTask.end_time))
+        stop =  self.currentTask.task_stop(self)  # is this is a stop or just time to update?
+        if stop:
+            print("task stop")
+        else:
+            print("no task stop yet")
+        return stop
+    def get_update_states(self):
+        if self.agent.learner.did_terminal:
+            self.agent.learner.did_terminal=False
+            update_s = deepcopy(self.agent.learner.agent.states)
+            update_a = deepcopy(self.agent.learner.agent.actions)
+            update_r = deepcopy(self.agent.learner.agent.rewards)
+            update_states =  True, (update_s,update_a,update_r)
+            self.agent.learner.agent.states = []
+            self.agent.learner.agent.actions = []
+            self.agent.learner.agent.rewards = []
+            self.agent.learner.t = 0
+            #print("reset t=0")
+        else:
+            # remove the last appended s,a,r since this was added after setObs
+            update_s = deepcopy(self.agent.learner.agent.states[:-1])
+            update_a = deepcopy(self.agent.learner.agent.actions[:-1])
+            update_r = deepcopy(self.agent.learner.agent.rewards[:-1])
+            update_states =  False, (update_s,update_a,update_r)
+            #keep only the last for the next update
+            self.agent.learner.agent.states = [self.agent.learner.agent.states[-1]]
+            self.agent.learner.agent.actions = [self.agent.learner.agent.actions[-1]]
+            self.agent.learner.agent.rewards = [self.agent.learner.agent.rewards[-1]]
+            #print("continue elementary task")
+        return update_states
+    # def update(self,terminal):
+    #     self.agent.learner.update(terminal)
+    def set_weights(self,w):
+        self.agent.learner.set_weights(w)
+    def initialize_task(self):
+        print("in init task")
+        print("initialising task")
+        self.generateMap()
+        self.agent.learner.new_elementary_task()
+        self.terminal = False
+
+    def save_agent(self,filename,save_learner):
+        if save_learner:
+            self.agent.learner.save(filename)
+        else:
+            self.agent.learner = None
+
+    def load_agent(self, filename):
+        self.agent.learner.load(filename)
+
+    def get_time(self):
+        return self.t
+
+    def get_statistics(self,filename):
+        self.printStatistics()
+        self.agent.learner.printPolicy()
+        self.agent.learner.save_stats(filename)
+    @overrides
+    def printStatistics(self):
+        self.agent.learner.printStatistics()
 
 #sizeX and sizeY just are the maximum (for visualisation)
 pacmanparams={'sizeX': 19 ,'sizeY':21, 'tasks': [],'observation_size': 1, 'observation_length':16,'sampling_rate': 10000, 'dynamic':False,
               'real_time':False ,'network_types':['external_actions'],'use_stats': True,
                'eval':False,'agent_filename': "pacman_pic.jpg",'include_task_features': False, 'inform_task_time':False,
               'record_intervals': [],'reward_hitwall':0.,'elementary_task_time':1000}
+
+
+
+

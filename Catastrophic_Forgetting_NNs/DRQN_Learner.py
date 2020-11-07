@@ -33,7 +33,7 @@ class DRQN_Learner(CompleteLearner):
 
     def __init__(self,task_features,use_task_bias,use_task_gain,n_inputs,trace_length,actions,file,episodic,loss=None,
                  target_model=False,num_neurons=80,epsilon_change=False,init_epsilon=None,final_epsilon=None,
-                 agent=None,intervals=[],num_features=0):
+                 agent=None,intervals=[],num_features=0,learning_rate=0.10):
         CompleteLearner.__init__(self,actions,file,episodic)
         self.init_variables(epsilon_change)
 
@@ -41,7 +41,7 @@ class DRQN_Learner(CompleteLearner):
         if agent is None:
             self.agent=DRQN_Learner.init_agent(n_inputs,actions,trace_length,episodic,
                                                task_features, use_task_bias, use_task_gain, num_neurons,
-                                                   target_model,init_epsilon,final_epsilon,num_features)
+                                                   target_model,init_epsilon,final_epsilon,num_features,learning_rate)
         self.state_size = DRQN_Learner.set_state_size(n_inputs, trace_length)
         self.continue_experiment(intervals)
         # self.model_objective = EWC_objective(lbda_task,learning_rate,batch_size,model,n_in, n_out,lbda,output_type=OutputType.linear,epochs=200,
@@ -55,7 +55,7 @@ class DRQN_Learner(CompleteLearner):
         print(self.agent.__dict__)
     @classmethod
     def init_agent(cls,n_inputs,actions,trace_length,episodic,task_features, use_task_bias, use_task_gain,
-                   num_neurons, target_model,init_epsilon=None,final_epsilon=None,num_features=0):
+                   num_neurons, target_model,init_epsilon=None,final_epsilon=None,num_features=0,learning_rate=0.10):
         action_size = len(actions)
         state_size = DRQN_Learner.set_state_size(n_inputs, trace_length)
         if num_features > 0:
@@ -75,26 +75,26 @@ class DRQN_Learner(CompleteLearner):
             if num_features > 0:
                 # input_shape, action_size, learning_rate, task_features, use_task_bias, use_task_gain
                 agent.model = CustomNetworks.feature_drqn(num_features,state_size, action_size, task_features,
-                                                  use_task_bias, use_task_gain, num_neurons)
+                                                  use_task_bias, use_task_gain, num_neurons,learning_rate=learning_rate)
                 if target_model:
                     agent.target_model = CustomNetworks.feature_drqn(num_features,state_size, action_size,
                                                              task_features, use_task_bias, use_task_gain,
-                                                             num_neurons)
+                                                             num_neurons,learning_rate=learning_rate)
             else:
                 # input_shape, action_size, learning_rate, task_features, use_task_bias, use_task_gain
                 agent.model = CustomNetworks.drqn(input_shape, action_size, task_features,
-                                                              use_task_bias, use_task_gain, num_neurons)
+                                                              use_task_bias, use_task_gain, num_neurons,learning_rate=learning_rate)
                 if target_model:
                     agent.target_model = CustomNetworks.drqn(input_shape, action_size,
                                                                          task_features, use_task_bias, use_task_gain,
-                                                                         num_neurons)
+                                                                         num_neurons,learning_rate=learning_rate)
         else:
             #input_shape, action_size, learning_rate, task_features, use_task_bias, use_task_gain
             agent.model = CustomNetworks.small_scale_drqn(input_shape, action_size, task_features,
-                                                          use_task_bias, use_task_gain,num_neurons)
+                                                          use_task_bias, use_task_gain,num_neurons,learning_rate=learning_rate)
             if target_model :
                 agent.target_model = CustomNetworks.small_scale_drqn(input_shape, action_size,
-                                                                     task_features, use_task_bias, use_task_gain,num_neurons)
+                                                                     task_features, use_task_bias, use_task_gain,num_neurons,learning_rate=learning_rate)
         return agent
 
     def fill_eps(self,num_acts,maxindex,eps):

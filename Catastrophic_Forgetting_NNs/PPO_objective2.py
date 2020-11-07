@@ -4,10 +4,14 @@ NN Policy with KL Divergence Constraint (PPO / TRPO)
 Written by Patrick Coady (pat-coady.github.io)
 """
 import numpy as np
-import tensorflow as tf
+
+import tensorflow.compat.v1 as tf
 
 import keras.backend as K
+import ray.experimental.tf_utils
 
+
+PARALLEL=True
 from keras.layers import LSTM,Dense
 
 from Catastrophic_Forgetting_NNs.CustomNetworks import CustomNetworks
@@ -17,7 +21,7 @@ DEBUG_MODE=True
 
 class Policy(object):
     """ NN-based policy approximation """
-    def __init__(self, obs_dim, act_dim,neurons,learning_rate,clipping,epochs,c1,c2,filename=None):
+    def __init__(self, obs_dim, act_dim,neurons,learning_rate,clipping,epochs,c1,c2,filename=None,w=None):
         """
         Args:
             obs_dim: num observation dimensions (int)
@@ -34,13 +38,13 @@ class Policy(object):
         self.act_dim = act_dim
         self.clipping = clipping
         if filename is None:
-            self._build_graph(neurons)
+            self._build_graph(neurons,w)
             self._init_session()
         else:
             self._restore_session(neurons,filename)
 
-
     def save(self,name):
+
         with self.g.as_default():
             model_saver = tf.train.Saver()
             # Train the model and save it in the end
@@ -52,6 +56,7 @@ class Policy(object):
 
 
     def _restore_session(self,neurons,filename):
+
         # self.sess = tf.Session()
         # saver = tf.train.Saver()
         # saver.restore(self.sess, filename)
@@ -78,12 +83,12 @@ class Policy(object):
         self._logprob()
         self._entropy()
         self._loss_train_op()
-    def _build_graph(self,neurons):
+    def _build_graph(self,neurons,w=None):
         """ Build and initialize TensorFlow graph """
         self.g = tf.Graph()
         with self.g.as_default():
             self._placeholders()
-            self._policy_nn(neurons)
+            self._policy_nn(neurons,w)
             self._procedures()
             self.init = tf.global_variables_initializer()
 
@@ -93,6 +98,7 @@ class Policy(object):
     def _placeholders(self):
         """ Input placeholders"""
         # observations, actions and advantages:
+
         self.obs_ph = tf.placeholder(tf.float32, (None,)+ self.obs_dim, 'obs_ph')
         self.act_ph = tf.placeholder(tf.float32, (None,self.act_dim), 'act_ph')
         self.advantages_ph = tf.placeholder(tf.float32, (None,), 'advantages_ph')
@@ -105,9 +111,8 @@ class Policy(object):
         self.logp_old = tf.placeholder(tf.float32, (None, 1), 'logp_old')
         self.observed_value = tf.placeholder(tf.float32, (None, 1), 'observed_value')
 
-    def small_scale_ppo_lstm(self,num_neurons,label):
+    def small_scale_ppo_lstm(self,num_neurons,w,label):
 
-        #
         # x=Input(tensor=self.obs_ph)
         # x = Dense(output_dim=num_neurons, activation='relu', batch_input_shape=(None,)+self.obs_dim)(x)
         #
@@ -127,49 +132,84 @@ class Policy(object):
         # critic = Dense(1, activation='linear')(x)
         #
         # model = Model(input=self.obs_ph, output=[actor, critic])
-
-        hidden1=tf.layers.dense(inputs=self.obs_ph, units=num_neurons, name=label+"1",activation=tf.nn.relu)
-
+        self.num_neurons=num_neurons
+        # (pid=28537)(11, 80)
+        # (pid=28537)(80, )
+        # (pid=28537)(80, 320)
+        # (pid=28537)(80, 320)
+        # (pid=28537)(320, )
+        # (pid=28537)(80, 5)
+        # (pid=28537)(5, )
+        # (pid=28537)(80, 1)
+        # (pid=28537)(1, )
+        if w is None:
+            hidden1=tf.layers.dense(inputs=self.obs_ph, units=num_neurons, name=label+"1",activation=tf.nn.relu)
+        else:
+            initw1 = tf.constant_initializer(w[0])
+            #initb1 = tf.constant_initializer(w[1])
+            #print("bias_W1 =", w[1])
+            hidden1 = tf.layers.dense(inputs=self.obs_ph, units=num_neurons, name=label + "1", activation=tf.nn.relu,
+                                      kernel_initializer=initw1)
         # Use all traces for training
         # model.add(LSTM(512, return_sequences=True,  activation='tanh'))
         # model.add(TimeDistributed(Dense(output_dim=action_size, activation='linear')))
 
         # Use last trace for training
-        hidden2=tf.keras.layers.LSTM(units=num_neurons, name=label+"2",activation=tf.tanh)(hidden1)
+        if w is None:
+            hidden2=tf.keras.layers.LSTM(units=num_neurons, name=label+"2",activation=tf.tanh)(hidden1)
+        else:
+            initw2 = tf.constant_initializer(w[2])
+            initr2 = tf.constant_initializer(w[3])
+            #initb2 = tf.constant_initializer(w[4])
+            #print("bias LSTM =", w[4])
+            hidden2 = tf.keras.layers.LSTM(units=num_neurons, name=label + "2", activation=tf.tanh,
+                                      kernel_initializer=initw2,recurrent_initializer=initr2)(hidden1)
         # if task_features:
         #     model.add(TaskSpecificLayer(task_features,use_task_bias,use_task_gain,units=action_size))
         # else:
         # Actor Stream
-        actor = tf.layers.dense(inputs=hidden2,units=self.act_dim, name=label+"actor", activation=tf.nn.softmax)
+        if w is None:
+            actor = tf.layers.dense(inputs=hidden2,units=self.act_dim, name=label+"actor", activation=tf.nn.softmax)
+        else:
+            initw3 = tf.constant_initializer(w[5])
+            #initb3 = tf.constant_initializer(w[6])
+            #print("bias_act =", w[6])
+            actor = tf.layers.dense(inputs=hidden2, units=self.act_dim, name=label + "actor", activation=tf.nn.softmax,
+                                    kernel_initializer=initw3)
 
         # Critic Stream
-        critic = tf.layers.dense(inputs=hidden2,units=1, name=label+"3",activation=None)  # None-> linear
+        if w is None:
+            critic = tf.layers.dense(inputs=hidden2,units=1, name=label+"3",activation=None)  # None-> linear
+        else:
+            initw4 = tf.constant_initializer(w[7])
+            #initb4 = tf.constant_initializer(w[8])
+            #print("bias critic", w[8])
+            critic = tf.layers.dense(inputs=hidden2, units=1, name=label + "3", activation=None,
+                                    kernel_initializer=initw4)
 
         return actor,critic
-    def _policy_nn(self,num_neurons):
+    def _policy_nn(self,num_neurons,w=None):
         """ Neural net for policy approximation function
-
-        Policy parameterized by Gaussian means and variances. NN outputs mean
-         action based on observation. Trainable variables hold log-variances
-         for each action dimension (i.e. variances not determined by NN).
         """
         # hidden layer sizes determined by obs_dim and act_dim (hid2 is geometric mean)
-        self.prob,self.value=self.small_scale_ppo_lstm(num_neurons,label="model")
+        self.prob,self.value=self.small_scale_ppo_lstm(num_neurons,w,label="model")
 
 
 
 
     def _logprob(self):
+
         """ Calculate log probabilities of a batch of observations & actions
 
         Calculates log probabilities using previous step's model parameters and
         new parameters being trained.
         """
 
-        self.get_log_p = -K.categorical_crossentropy(self.act_ph,self.prob)
+        self.get_log_p = -K.categorical_crossentropy(self.act_ph+1e-10,self.prob+1e-10) # avoid any numerical issues by e-10
 
     def _entropy(self):
-        self.get_entropy = K.mean(K.categorical_crossentropy(self.prob,self.prob))
+
+        self.get_entropy = K.mean(K.categorical_crossentropy(self.prob+1e-10,self.prob+1e-10)) # avoid any numerical issues by e-10
 
     # def _kl_entropy(self):
     #     """
@@ -220,9 +260,13 @@ class Policy(object):
 
     def _init_session(self):
         """Launch TensorFlow session and initialize variables"""
+
         self.sess = tf.Session(graph=self.g)
         self.sess.run(self.init)
 
+        if PARALLEL:
+            with self.g.as_default():
+                self.variables = ray.experimental.tf_utils.TensorFlowVariables(self.loss, self.sess)
     def sample(self, obs):
         """Draw sample from policy distribution"""
         feed_dict = {self.obs_ph: obs}
@@ -245,7 +289,17 @@ class Policy(object):
         for val in tvars_vals:
             weights=np.append(weights,val)
         return weights
+    def get_all_weights_list(self):
+        # vars = self.g.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+        # tvars_vals = self.sess.run(vars)
+        # return tvars_vals
+        return self.variables.get_weights()
 
+    def set_all_weights(self,weights):
+        print("set weights")
+        # self._build_graph(self.num_neurons,tvars_vals)
+        # self._init_session()
+        self.variables.set_weights(weights)
     def update_batch(self, observes, actions, advantages, discounted_rewards):
         """ Update policy based on observations, actions and advantages
 

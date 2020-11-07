@@ -38,12 +38,18 @@ def read_incremental(filename):
     data2 = pickle.loads(bytes_in)
     print("file loaded successfully (incremental)")
     return data2
-def getStatistics(e,filename):
-    e.printStatistics()
-    e.agent.learner.printPolicy()
-    e.agent.learner.save_stats(filename)
-
-
+def getStatistics(e,filename,is_actor):
+    if is_actor:
+        e.get_statistics.remote(filename)
+    else:
+        e.printStatistics()
+        e.agent.learner.printPolicy()
+        e.agent.learner.save_stats(filename)
+def must_load(arg_list):
+    for i in range(len(arg_list)):
+        if i > 0 and arg_list[i-1] == '-e':
+            return True
+    return False
 def submit_job(arg_list,job_script,difficulty="Difficult"):
     arg_string =''
     found=False
@@ -84,8 +90,7 @@ def continue_experiment(interrupted,arg_list,job_script="bash ${HOME}/POmazescri
     if interrupted:
         submit_job(arg_list,job_script)
 
-
-def finalise_experiment(e,filename,arg_list,no_saving,args,save_stats=True,save_learner=True,save_environment=True):
+def finalise_experiment(e,filename,arg_list,no_saving,args,save_stats=True,save_learner=True,save_environment=True,is_actor=False):
 
     if no_saving:
         return
@@ -96,21 +101,46 @@ def finalise_experiment(e,filename,arg_list,no_saving,args,save_stats=True,save_
         del e.vis.display.video
         e.vis.display.on = False
     begintime = time.time()
-    if not save_learner:
-        e.agent.learner=None
+    if save_stats:
+        getStatistics(e, filename,is_actor)
+
+    if is_actor:
+        e.save_agent.remote(filename, save_learner)
     else:
-        e.agent.learner.save(filename)
+        e.save_agent(filename,save_learner)
     if save_environment:
         dump_incremental(filename+"_environment", e)
     else:
         dump_incremental(filename+"_agent", e.agent)
-    if save_stats:
-        getStatistics(e, filename)
+
 
 
     time_passed = time.time() - begintime
     print("save time=%.3f" % (time_passed))
 
+def finalise_experiment_actors(e,filename,arg_list,no_saving,args,save_stats=True,save_learner=True,save_environment=True):
+
+    if no_saving:
+        return
+
+    # Saving the objects:
+    if args.record_video:
+        # can't save videowith pickle, so will have to stop this one
+        del e.vis.display.video
+        e.vis.display.on = False
+    begintime = time.time()
+
+    e.save_agent(filename,save_learner)
+
+    for i in range(e.num_actors):
+        finalise_experiment(e.actors[i],filename+"worker"+str(i),arg_list,no_saving,args,save_stats=save_stats,save_learner=False,save_environment=save_environment,is_actor=True)
+    del e.actors
+    if save_environment:
+        dump_incremental(filename+"_environment", e)
+    else:
+        dump_incremental(filename+"_agent", e.agent)
+    time_passed = time.time() - begintime
+    print("complete save time=%.3f" % (time_passed))
 
 def save_intermediate(e,filename,save_stats=True,save_learner=True):
     if save_stats:
@@ -125,4 +155,5 @@ def save_intermediate(e,filename,save_stats=True,save_learner=True):
 
     time_passed = time.time() - begintime
     print("save time=%.3f" % (time_passed))
+
 

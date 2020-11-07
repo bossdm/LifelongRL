@@ -342,7 +342,6 @@ class Maze(NavigationEnvironment):
     def endEpisode(self):
         if self.t > 0:
             if self.agent.learner.episodic and self.terminal:
-
                     self.agent.learner.setTerminalObservation(self.agent, self)  # set the final observation
             stat=self.currentStat()
             if stat:

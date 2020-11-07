@@ -20,7 +20,7 @@ from keras.optimizers import SGD, Adam, rmsprop, Adadelta
 from keras.layers.recurrent import LSTM, GRU
 from keras.layers.normalization import BatchNormalization
 from keras import backend as K
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 #tf.python.control_flow_ops = tf
 
@@ -278,6 +278,7 @@ class CustomNetworks(object):
     @staticmethod
     def small_scale_drqn(input_shape, action_size, task_features,use_task_bias,use_task_gain, num_neurons=80,learning_rate=.10):
 
+        print("learning rate " +str(learning_rate))
         model = Sequential()
 
         model.add(Dense(output_dim=num_neurons, activation='relu',batch_input_shape=input_shape))

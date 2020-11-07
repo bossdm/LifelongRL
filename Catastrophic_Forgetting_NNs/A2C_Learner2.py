@@ -9,8 +9,8 @@ from overrides import overrides
 
 from Methods.Learner import CompleteLearner
 
-from A2C_small2 import A2CAgent,PPO_Agent
-from CustomNetworks import CustomNetworks
+from Catastrophic_Forgetting_NNs.A2C_small2 import A2CAgent,PPO_Agent
+from Catastrophic_Forgetting_NNs.CustomNetworks import CustomNetworks
 
 from keras.models import clone_model
 
@@ -36,7 +36,6 @@ class A2C_Learner(CompleteLearner):
         CompleteLearner.__init__(self,actions,file,episodic)
 
         self.init_variables()
-
         self.action_size=len(actions)
         if agent is None:
             self.agent=A2C_Learner.init_agent(n_inputs,actions,trace_length,episodic,
@@ -116,7 +115,9 @@ class A2C_Learner(CompleteLearner):
                 print("loss="+str(loss))
     @overrides
     def new_elementary_task(self):
+        print("new elementary task")
         if self.episodic :
+            print("episodic")
             self.agent.reset_states()
             self.t = 0
 
@@ -183,8 +184,10 @@ class A2C_Learner(CompleteLearner):
 
     @overrides
     def setTerminalObservation(self,agent,environment):
+        #print("setting terminal observation")
         self.setObservation(agent,environment)
         if self.t >= self.agent.trace_length and len(self.agent.rewards) >= 1:
+            #print("appending state")
             self.agent.states.append(self.s_t) # add final state
 
 
@@ -197,13 +200,15 @@ class A2C_Learner(CompleteLearner):
         if self.t < self.agent.trace_length:
             self.action_idx =  random.randrange(self.action_size)
         else:
+            # try:
             self.action_idx = self.agent.get_action(np.expand_dims(self.s_t,0))[0]
+            # except Exception as e:
+            #     print(e)
+            #     print("state = " + str(self.s_t))
+            #     raise e
 
 
         self.chosenAction=self.actions[self.action_idx]
-
-
-
 
 
 
@@ -266,15 +271,14 @@ class PPO_Learner(A2C_Learner):
     def __init__(self, task_features, use_task_bias, use_task_gain, n_inputs, trace_length, actions, file, episodic,
                  loss=None,
                  target_model=False, num_neurons=80,
-                 agent=None, intervals=[]):
+                 agent=None, intervals=[],params={}):
         CompleteLearner.__init__(self, actions, file, episodic)
 
         self.init_variables()
-
         self.action_size = len(actions)
         if agent is None:
             self.agent = PPO_Learner.init_agent(n_inputs, actions, trace_length, episodic,
-                                                task_features, use_task_bias, use_task_gain, num_neurons)
+                                                task_features, use_task_bias, use_task_gain, num_neurons,params)
         self.state_size = PPO_Learner.set_state_size(n_inputs, trace_length)
         self.continue_experiment(intervals)
 
@@ -291,11 +295,11 @@ class PPO_Learner(A2C_Learner):
 
     @classmethod
     def init_agent(cls,n_inputs,actions,trace_length,episodic,task_features, use_task_bias, use_task_gain,
-                   num_neurons):
+                   num_neurons,params):
         action_size = len(actions)
         state_size = A2C_Learner.set_state_size(n_inputs, trace_length)
         agent = PPO_Agent(state_size, action_size, trace_length,
-                                episodic=episodic)
+                                episodic=episodic,params=params)
         return agent
 
     def add_sample(self):

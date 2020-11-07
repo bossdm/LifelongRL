@@ -6,7 +6,7 @@ import numpy as np
 from Catastrophic_Forgetting_NNs.A2C_Learner2 import PPO_Learner
 from copy import deepcopy
 from overrides import overrides
-from TaskDriftBase import TaskDriftBase
+from Lifelong.TaskDriftBase import TaskDriftBase
 from keras.models import Model, load_model, clone_model
 
 class TaskDriftPPO(PPO_Learner,TaskDriftBase):

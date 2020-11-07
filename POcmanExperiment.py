@@ -70,7 +70,6 @@ args = parser.parse_args()
 defaultmapobjfuns={}
 
 
-
 pocman_task=NavigationTask(reward_fun_pocman,defaultmapobjfuns,STOPTIME)
 
 
