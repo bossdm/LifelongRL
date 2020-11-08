@@ -217,7 +217,7 @@ class CustomNetworks(object):
         model.add(TimeDistributed(Conv2D(32, (8, 8), strides=(4, 4), activation='relu'),
                                   batch_input_shape=(input_shape)))
         model.add(TimeDistributed(Conv2D(64, (4, 4), strides=(2, 2), activation='relu')))
-        model.add(TimeDistributed(Conv2D(64, (3, 3), activation='relu')))
+        model.add(TimeDistributed(Conv2D(64, (3, 3), strides=(1,1), activation='relu')))
         model.add(TimeDistributed(Flatten()))
 
         # Use all traces for training
@@ -233,9 +233,9 @@ class CustomNetworks(object):
             model.add(Dense(units=action_size, activation='linear'))
 
         #adam = Adam(lr=learning_rate)
-        optimiser=rmsprop(lr=0.001, rho=0.9, epsilon=None, decay=0.0)
-        model.compile(loss='mse',optimizer=optimiser)
-
+        ada_delta = Adadelta(lr=learning_rate, rho=0.95, clipvalue=10.0)
+        model.compile(loss='mse', optimizer=ada_delta)
+        print(model.__dict__)
         return model
 
     @staticmethod

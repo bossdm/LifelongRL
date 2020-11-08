@@ -302,10 +302,10 @@ class DoubleDRQNAgent:
 
         self.replay_start_size = 50000
         self.exploration_frame = 20*self.replay_start_size
-        self.frame_per_action = 1
+        self.frame_per_action = 3
         self.trace_length = trace_length
-        self.update_target_freq = 10000
         self.update_freq = 4 # Number of timesteps between training interval
+        self.update_target_freq = 10000 * self.frame_per_action * self.update_freq
         self.total_t = 0
 
         # Create replay memory

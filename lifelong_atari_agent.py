@@ -15,18 +15,18 @@ def get_DQN_agent_configs(inputs,externalActions,filename,episodic):
         lr=float(os.environ["tuning_lr"])
     else:
         lr=0.10
-    return  {'num_neurons':80,'task_features': [], 'use_task_bias': False,
-                   'use_task_gain': False, 'n_inputs': inputs, 'trace_length': 15,
+    return  {'num_neurons':None,'task_features': [], 'use_task_bias': False,
+                   'use_task_gain': False, 'n_inputs': inputs, 'trace_length': 5,
                    'actions': deepcopy(externalActions),'episodic': episodic,
-                'target_model':True,'init_epsilon':.20,'final_epsilon':.20,'epsilon_change':False,"learning_rate":lr}
+                'target_model':True,'init_epsilon':1.0,'final_epsilon':.10,'epsilon_change':True,"learning_rate":lr}
 def get_A2C_configs(inputs,externalActions, filename, episodic):
     paramsdict={}
     if os.environ["tuning_lr"]:
         paramsdict["learning_rate"]=float(os.environ["tuning_lr"])
     else:
         paramsdict["learning_rate"]=0.00025
-    return {'num_neurons': 80, 'task_features': [], 'use_task_bias': False,
-            'use_task_gain': False, 'n_inputs': inputs, 'trace_length': 15,
+    return {'num_neurons': None, 'task_features': [], 'use_task_bias': False,
+            'use_task_gain': False, 'n_inputs': inputs, 'trace_length': 5,
             'actions': deepcopy(externalActions), 'episodic': episodic,'file':filename, 'params':paramsdict
             }
 
@@ -92,7 +92,7 @@ def select_learner(args,inputs,externalActions,filename,episodic=True):
         from Catastrophic_Forgetting_NNs.A2C_Learner2 import PPO_Learner
         settings = get_A2C_configs(inputs, externalActions, filename, episodic)
         method = PPO_Learner(**settings)
-    elif args.method == "DQN":
+    elif args.method == "DRQN":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import DRQN_Learner
         settings=get_DQN_configs(inputs,externalActions,filename,episodic)
         method = DRQN_Learner( **settings)
