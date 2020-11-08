@@ -235,7 +235,6 @@ class CustomNetworks(object):
         #adam = Adam(lr=learning_rate)
         ada_delta = Adadelta(lr=learning_rate, rho=0.95, clipvalue=10.0)
         model.compile(loss='mse', optimizer=ada_delta)
-        print(model.__dict__)
         return model
 
     @staticmethod

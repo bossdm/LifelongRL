@@ -5,6 +5,8 @@ from gym.envs.atari.atari_env import *
 
 from copy import deepcopy
 
+FRAMES_PER_TASK=50*10**6
+FRAMES_PER_EPISODE=18000 # according to Arcade learning environment paper
 
 def get_DQN_configs(inputs,externalActions,filename,episodic):
     d=get_DQN_agent_configs(inputs, externalActions, filename, episodic)
@@ -61,15 +63,14 @@ def generate_environment_sequence(args):
         print("obs ",environments[-1].observation_space)
         print("act", environments[-1].action_space)
     return environments
-def perform_episode(visual,env, agent, seed,total_t):
+def perform_episode(episode_count,visual,env, agent, seed,total_t):
     print("starting environment")
     env.seed(seed)
     for item in env.__dict__.items():
         print(item)
-    episode_count = 100
     reward = 0
     done = False
-
+    consumed_frames=0
     for t in range(episode_count):
         ob = env.reset()
         while True:
@@ -80,12 +81,15 @@ def perform_episode(visual,env, agent, seed,total_t):
             if visual:
                 env.render()
             total_t+=1
+            consumed_frames+=1
             # Note there's no env.render() here. But the environment still can open window and
             # render if asked by env.monitor: it calls env.render('rgb_array') to record video.
             # Video is not recorded every episode, see capped_cubic_video_schedule for details.
 
     # Close the env and write monitor result info to disk
     env.close()
+    return consumed_frames
+
 
 def select_learner(args,inputs,externalActions,filename,episodic=True):
     if args.method == "PPO":
@@ -123,13 +127,17 @@ if __name__ == '__main__':
     # directory, including one with existing data -- all monitor files
     # will be namespaced). You can also dump to a tempdir if you'd
     # like: tempfile.mkdtemp().
-    outdir = '/tmp/random-agent-results'
 
     envs = generate_environment_sequence(args)
     inputs = envs[0].observation_space
     num_actions = 18
     agent = LifelongAtariAgent(args,filename,inputs.shape,range(len(ACTION_MEANING)))
     total_t=0
+    stop=FRAMES_PER_TASK*len(envs)
     for env in envs:
-        #visual,env, agent, seed,total_t
-        perform_episode(args.VISUAL, env, agent, args.run, total_t)
+        print("starting ",env.game)
+        taskblock_t=0
+        while taskblock_t<FRAMES_PER_TASK:
+            print("starting new episode at taskblock_t: ", taskblock_t)
+            consumed_frames=perform_episode(FRAMES_PER_EPISODE,args.VISUAL, env, agent, args.run, total_t)
+            taskblock_t+=consumed_frames
