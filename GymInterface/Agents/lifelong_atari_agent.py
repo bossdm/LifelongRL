@@ -37,10 +37,15 @@ def get_A2C_configs(inputs,externalActions, filename, episodic):
 
 class LifelongAtariAgent(object):
     """The world's simplest agent!"""
-    def __init__(self, args,inputs, externalActions):
-        self.learner = select_learner(args,inputs,externalActions,args.filename)
-    def act(self,obs,reward,done):
-        return 0
+    def __init__(self, args,filename,inputs, externalActions):
+        self.learner = select_learner(args,inputs,externalActions,filename)
+    def act(self,obs, reward, done, total_t, t):
+        if done:
+            self.learner.setAtariTerminalObservation(obs)
+        else:
+            self.learner.setReward(reward)
+            self.learner.atari_cycle(obs, reward, total_t, t)
+        return self.learner.chosenAction
 
 
 def generate_environment_sequence(experiment_type):
@@ -61,25 +66,25 @@ def generate_environment_sequence(experiment_type):
         print("obs ",environments[-1].observation_space)
         print("act", environments[-1].action_space)
     return environments
-def perform_episode(visual,env, agent, seed):
+def perform_episode(visual,env, agent, seed,total_t):
     print("starting environment")
     env.seed(seed)
     for item in env.__dict__.items():
         print(item)
-    agent = LifelongAtariAgent(args,env.observation_space.shape,env.action_space.shape)
     episode_count = 100
     reward = 0
     done = False
 
-    for i in range(episode_count):
+    for t in range(episode_count):
         ob = env.reset()
         while True:
-            action = agent.act(ob, reward, done)
+            action = agent.act(ob, reward, done, total_t, t)
             ob, reward, done, _ = env.step(action)
             if done:
                 break
             if visual:
                 env.render()
+            total_t+=1
             # Note there's no env.render() here. But the environment still can open window and
             # render if asked by env.monitor: it calls env.render('rgb_array') to record video.
             # Video is not recorded every episode, see capped_cubic_video_schedule for details.
@@ -108,7 +113,7 @@ if __name__ == '__main__':
     args.VISUAL=True
     args.method="DQN"
     args.run=1
-    args.filename=os.environ["HOME"]+"/LifelongRL/GymInterface/Results/"+args.experiment_type+"_"+args.method+"r"+str(args.run)
+    filename=os.environ["HOME"]+"/LifelongRL/GymInterface/Results/"+args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols"
     walltime = 60 * 3600  # 60 hours by default
     if args.walltime:
         ftr = [3600, 60, 1]
@@ -130,8 +135,8 @@ if __name__ == '__main__':
     envs = generate_environment_sequence(args.experiment_type)
     inputs = envs[0].observation_space
     num_actions = 18
-    agent = LifelongAtariAgent(args,inputs.shape,list(ACTION_MEANING.values()))
+    agent = LifelongAtariAgent(args,filename,inputs.shape,range(len(ACTION_MEANING)))
+    total_t=0
     for env in envs:
-        perform_episode(args.VISUAL, env, agent, args.run)
-
-
+        #visual,env, agent, seed,total_t
+        perform_episode(args.VISUAL, env, agent, args.run, total_t)

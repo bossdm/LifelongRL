@@ -218,6 +218,11 @@ class DRQN_Learner(CompleteLearner):
     def setTerminalObservation(self,agent,environment):
         self.setObservation(agent,environment)
         self.add_experience()
+    @overrides
+    def setAtariTerminalObservation(self,obs):
+        self.observation = obs  # in case of task drif
+        self.s_t1 = np.array(self.observation)
+        self.add_experience()
     def get_input(self):
         if self.episodic:
             if len(self.episode_buf) > self.agent.trace_length:
@@ -334,6 +339,16 @@ class DRQN_Learner(CompleteLearner):
     def performAction(self, agent, environment):
         self.chosenAction.perform([agent,environment])
         #self.t = environment.t
+    @overrides
+    def atari_cycle(self,observation, reward, total_t, t):
+        self.total_t = total_t
+        self.agent.total_t = total_t
+        self.t = t
+        self.observation = observation  # in case of task drif
+        self.r = reward
+        self.s_t1 = np.array(self.observation)
+        self.learn()
+        self.setAction()
     @overrides
     def cycle(self,agent,environment):
         if self.exploration_schedule:

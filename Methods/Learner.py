@@ -49,7 +49,12 @@ class CompleteLearner(object):
 
     def setObservation(self,agent,environment):
         pass
-
+    @abstractmethod
+    def setAtariTerminalObservation(self,obs):
+        pass
+    @abstractmethod
+    def atari_cycle(self, observation, reward, total_t, t):
+        pass
     @abstractmethod
     def cycle(self,agent,environment):
         pass
