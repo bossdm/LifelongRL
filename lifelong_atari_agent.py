@@ -1,14 +1,10 @@
-import argparse
-import sys
 
-import gym
 from gym import wrappers, logger
 
 from gym.envs.atari.atari_env import *
 
 from copy import deepcopy
 
-from Methods.Learner import CompleteLearner
 
 def get_DQN_configs(inputs,externalActions,filename,episodic):
     d=get_DQN_agent_configs(inputs, externalActions, filename, episodic)
@@ -48,14 +44,13 @@ class LifelongAtariAgent(object):
         return self.learner.chosenAction
 
 
-def generate_environment_sequence(experiment_type):
+def generate_environment_sequence(args):
     environments = []
-    if experiment_type=="lifelong":
-        games=["pong","breakout","bowling","boxing","battle_zone","chopper_command",# hitting target
-                "ms_pacman","alien","up_n_down","time_pilot","frostbite"] # navigation
-        #all games have observation space Box(0, 255, (210, 160, 3), uint8)
-    else:
-        games=["frostbite"] # a single game with exactly 18 discrete actions
+    games = ["pong", "breakout", "bowling", "boxing", "battle_zone", # hitting target
+             "ms_pacman", "alien", "up_n_down", "time_pilot", "frostbite"]  # navigation
+    # all games have observation space Box(0, 255, (210, 160, 3), uint8)
+    if args.experiment_type!="lifelong":
+        games=[games[args.run]] # a single game with exactly 18 discrete actions
     frameskip = 3
     for game in games:
         environments.append(AtariEnv(game=game,mode=None,difficulty=None,obs_type="image",frameskip=frameskip,
@@ -109,11 +104,9 @@ if __name__ == '__main__':
     parser.add_argument("-P", dest="policies", type=int,default=1)
     parser.add_argument("-x", dest="experiment_type", type=str, default="single")  # lifelong, initial, interference or test
     args = parser.parse_args()
-    args.experiment_type = "single"
-    args.VISUAL=True
-    args.method="DQN"
-    args.run=1
-    filename=os.environ["HOME"]+"/LifelongRL/GymInterface/Results/"+args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols"
+    print("will start run ",args.run)
+    args.VISUAL=False
+    filename=args.filename + "/"+args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
     walltime = 60 * 3600  # 60 hours by default
     if args.walltime:
         ftr = [3600, 60, 1]
@@ -132,7 +125,7 @@ if __name__ == '__main__':
     # like: tempfile.mkdtemp().
     outdir = '/tmp/random-agent-results'
 
-    envs = generate_environment_sequence(args.experiment_type)
+    envs = generate_environment_sequence(args)
     inputs = envs[0].observation_space
     num_actions = 18
     agent = LifelongAtariAgent(args,filename,inputs.shape,range(len(ACTION_MEANING)))
