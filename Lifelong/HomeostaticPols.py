@@ -383,28 +383,6 @@ class HomeostaticPol(CompleteLearner):
     def printStatistics(self):
         for key in self.stats.__dict__:
             print("%s :   \n %s"%(key,self.stats.__dict__[key]))
-    @classmethod
-    def get_standard_instance(cls,externalActions,filename=''):
-        from MultiBlockStackLSTM_SSA import MultiBlockStackLSTM_SSA
-        from HomeostaticPols import HomeostaticPol
-        from Configs.InstructionSets import internalActions_LSTM_SSA_WM_deltasuncertainty
-        inputs=4
-        filename=''
-        externalActions=externalActions
-        num_pols = 2
-        pols = [None] * 2
-        for pol in range(num_pols):
-            pols[pol] = MultiBlockStackLSTM_SSA(total_num_tasks=None,
-                                                episodic=False, argument_activation="sigmoid",
-                                                num_units=[15, 15],
-                                                num_inputs=inputs,
-                                                actions=deepcopy(externalActions),
-                                                internal_actions=internalActions_LSTM_SSA_WM_deltasuncertainty,
-                                                wm_cells=20,
-                                                perception_modules=[], filename=filename, prepEvalParam=1,
-                                                maxTime=10000)
-        return HomeostaticPol(externalActions, filename, pols, weights=None, stepsize=0.10, init_provision=1.0,
-                                consumption=.10)
 
     def get_minkowski_distance(self,coord1,coord2):
         return np.sum(np.power(np.abs(coord1-coord2),self.D))**(1./self.D)

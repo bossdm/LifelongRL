@@ -82,12 +82,9 @@ class DRQN_Learner(CompleteLearner):
                                                              num_neurons,learning_rate=learning_rate)
             else:
                 # input_shape, action_size, learning_rate, task_features, use_task_bias, use_task_gain
-                agent.model = CustomNetworks.drqn(input_shape, action_size, task_features,
-                                                              use_task_bias, use_task_gain, num_neurons,learning_rate=learning_rate)
+                agent.model = CustomNetworks.drqn(input_shape, action_size, learning_rate,task_features,use_task_bias,use_task_gain)
                 if target_model:
-                    agent.target_model = CustomNetworks.drqn(input_shape, action_size,
-                                                                         task_features, use_task_bias, use_task_gain,
-                                                                         num_neurons,learning_rate=learning_rate)
+                    agent.target_model = CustomNetworks.drqn(input_shape, action_size, learning_rate,task_features,use_task_bias,use_task_gain)
         else:
             #input_shape, action_size, learning_rate, task_features, use_task_bias, use_task_gain
             agent.model = CustomNetworks.small_scale_drqn(input_shape, action_size, task_features,
