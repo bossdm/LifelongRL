@@ -16,8 +16,8 @@ from keras.models import Sequential, load_model, Model
 from keras.layers.core import Dense, Dropout, Activation, Flatten
 from keras.layers.wrappers import TimeDistributed
 from keras.layers import Conv2D, Dense, Flatten, merge, MaxPooling2D, Input, AveragePooling2D, Lambda, merge, Activation, Embedding
-from keras.optimizers import SGD, Adam, rmsprop, Adadelta
-from keras.layers.recurrent import LSTM, GRU
+from keras.optimizers import Adam, Adadelta
+from keras.layers.recurrent import LSTM
 from keras.layers.normalization import BatchNormalization
 from keras import backend as K
 import tensorflow.compat.v1 as tf

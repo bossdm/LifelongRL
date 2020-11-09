@@ -38,13 +38,17 @@ class LifelongAtariAgent(object):
     def __init__(self, args,filename,inputs, externalActions):
         self.learner = select_learner(args,inputs,externalActions,filename)
     def act(self,obs, reward, done, total_t, t):
-        if done:
-            self.learner.setAtariTerminalObservation(obs)
-        else:
-            self.learner.setReward(reward)
-            self.learner.atari_cycle(obs, reward, total_t, t)
-        return self.learner.chosenAction
 
+        self.learner.setReward(reward)
+        self.learner.atari_cycle(obs, reward, total_t, t)
+        return self.learner.chosenAction
+    def set_term(self,obs):
+        self.learner.setAtariTerminalObservation(obs)
+
+    def new_episode(self):
+        self.learner.new_elementary_task()
+    def end_episode(self):
+        self.learner.reset()
 
 def generate_environment_sequence(args):
     environments = []
@@ -63,7 +67,7 @@ def generate_environment_sequence(args):
         print("obs ",environments[-1].observation_space)
         print("act", environments[-1].action_space)
     return environments
-def perform_episode(episode_count,visual,env, agent, seed,total_t):
+def perform_episode(count,visual,env, agent, seed,total_t):
     print("starting environment")
     env.seed(seed)
     for item in env.__dict__.items():
@@ -71,21 +75,25 @@ def perform_episode(episode_count,visual,env, agent, seed,total_t):
     reward = 0
     done = False
     consumed_frames=0
-    for t in range(episode_count):
-        ob = env.reset()
-        while True:
-            action = agent.act(ob, reward, done, total_t, t)
-            ob, reward, done, _ = env.step(action)
-            if done:
-                break
-            if visual:
-                env.render()
-            total_t+=1
-            consumed_frames+=1
+    ob = env.reset()
+    t=0
+    agent.new_episode()
+    while True:
+        action = agent.act(ob, reward, done, total_t, t)
+        ob, reward, done, _ = env.step(action)
+        if done:
+            agent.set_term(ob)
+            break
+        if visual:
+            env.render()
+        t+=1
+        total_t+=1
+        consumed_frames+=1
+
             # Note there's no env.render() here. But the environment still can open window and
             # render if asked by env.monitor: it calls env.render('rgb_array') to record video.
             # Video is not recorded every episode, see capped_cubic_video_schedule for details.
-
+    agent.end_episode()
     # Close the env and write monitor result info to disk
     env.close()
     return consumed_frames
@@ -110,6 +118,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print("will start run ",args.run)
     args.VISUAL=False
+    # args.method="DRQN"
+    # args.policies=1
+    # args.run=0
+    # args.filename="/home/david/LifelongRL"
     filename=args.filename + "/"+args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
     walltime = 60 * 3600  # 60 hours by default
     if args.walltime:
@@ -134,6 +146,7 @@ if __name__ == '__main__':
     agent = LifelongAtariAgent(args,filename,inputs.shape,range(len(ACTION_MEANING)))
     total_t=0
     stop=FRAMES_PER_TASK*len(envs)
+    num_episodes=0
     for env in envs:
         print("starting ",env.game)
         taskblock_t=0
@@ -141,3 +154,5 @@ if __name__ == '__main__':
             print("starting new episode at taskblock_t: ", taskblock_t)
             consumed_frames=perform_episode(FRAMES_PER_EPISODE,args.VISUAL, env, agent, args.run, total_t)
             taskblock_t+=consumed_frames
+            total_t+=consumed_frames # need to add because primitive data types not passed by reference
+            num_episodes+=1

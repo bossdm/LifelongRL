@@ -19,7 +19,7 @@ def clone_kerasmodel(model):
     copy_m.set_weights(model.get_weights())
     return model
 
-DEBUG_MODE=False
+DEBUG_MODE=True
 
 
 class DRQN_Learner(CompleteLearner):

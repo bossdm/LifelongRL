@@ -31,7 +31,7 @@ import sys,os
 
 
 from Catastrophic_Forgetting_NNs.CustomNetworks import CustomNetworks
-DEBUG_MODE=False
+DEBUG_MODE=True
 
 def preprocessImg(img, size):
     img = np.rollaxis(img, 0, 3)  # It becomes (640, 480, 3)
