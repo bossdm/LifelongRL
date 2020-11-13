@@ -5,8 +5,13 @@ from gym.envs.atari.atari_env import *
 
 from copy import deepcopy
 
-FRAMES_PER_TASK=50*10**6
-FRAMES_PER_EPISODE=18000 # according to Arcade learning environment paper
+from ExperimentUtils import dump_incremental
+
+import time
+
+FRAMES_PER_TASK=10*10**6  # for tuning
+#FRAMES_PER_TASK=50*10**6  # for full experiment
+#FRAMES_PER_EPISODE=18000 # according to Arcade learning environment paper
 
 def get_DQN_configs(inputs,externalActions,filename,episodic):
     d=get_DQN_agent_configs(inputs, externalActions, filename, episodic)
@@ -57,7 +62,7 @@ def generate_environment_sequence(args):
     # all games have observation space Box(0, 255, (210, 160, 3), uint8)
     if args.experiment_type!="lifelong":
         games=[games[args.run]] # a single game with exactly 18 discrete actions
-    frameskip = 3
+    frameskip = 4
     for game in games:
         environments.append(AtariEnv(game=game,mode=None,difficulty=None,obs_type="image",frameskip=frameskip,
                                      repeat_action_probability=0.0,
@@ -67,11 +72,9 @@ def generate_environment_sequence(args):
         print("obs ",environments[-1].observation_space)
         print("act", environments[-1].action_space)
     return environments
-def perform_episode(count,visual,env, agent, seed,total_t):
+def perform_episode(visual,env, agent, seed,total_t):
     print("starting environment")
     env.seed(seed)
-    for item in env.__dict__.items():
-        print(item)
     reward = 0
     done = False
     consumed_frames=0
@@ -147,12 +150,23 @@ if __name__ == '__main__':
     total_t=0
     stop=FRAMES_PER_TASK*len(envs)
     num_episodes=0
+    starttime = time.time()
+    agent.learner.printDevelopment()
     for env in envs:
         print("starting ",env.game)
         taskblock_t=0
+        for item in env.__dict__.items():
+            print(item)
         while taskblock_t<FRAMES_PER_TASK:
             print("starting new episode at taskblock_t: ", taskblock_t)
-            consumed_frames=perform_episode(FRAMES_PER_EPISODE,args.VISUAL, env, agent, args.run, total_t)
-            taskblock_t+=consumed_frames
+            consumed_frames=perform_episode(args.VISUAL, env, agent, args.run*100000+num_episodes, total_t)
+            taskblock_t+=consumed_frames*env.frameskip
             total_t+=consumed_frames # need to add because primitive data types not passed by reference
             num_episodes+=1
+            agent.learner.printDevelopment()
+            walltime_consumed = time.time() - starttime
+            if walltime_consumed >= 0.9*walltime:
+                agent.learner.save(filename)
+                dump_incremental(filename + "_agent", agent)
+                print("stopping at time ", walltime_consumed)
+                exit(0)

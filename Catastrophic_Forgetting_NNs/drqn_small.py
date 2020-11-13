@@ -31,7 +31,7 @@ import sys,os
 
 
 from Catastrophic_Forgetting_NNs.CustomNetworks import CustomNetworks
-DEBUG_MODE=True
+DEBUG_MODE=False
 
 def preprocessImg(img, size):
     img = np.rollaxis(img, 0, 3)  # It becomes (640, 480, 3)
@@ -302,7 +302,7 @@ class DoubleDRQNAgent:
 
         self.replay_start_size = 50000
         self.exploration_frame = 20*self.replay_start_size
-        self.frame_per_action = 3
+        self.frame_per_action = 4
         self.trace_length = trace_length
         self.update_freq = 4 # Number of timesteps between training interval
         self.update_target_freq = 10000 * self.frame_per_action * self.update_freq
