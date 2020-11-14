@@ -2,14 +2,14 @@
 from gym import wrappers, logger
 
 from gym.envs.atari.atari_env import *
-
+from gym.wrappers.atari_preprocessing import *
 from copy import deepcopy
 
-from ExperimentUtils import dump_incremental
+from ExperimentUtils import dump_incremental, read_incremental
 
 import time
 
-FRAMES_PER_TASK=10*10**6  # for tuning
+FRAMES_PER_TASK=10*10**3 # for tuning
 #FRAMES_PER_TASK=50*10**6  # for full experiment
 #FRAMES_PER_EPISODE=18000 # according to Arcade learning environment paper
 
@@ -54,24 +54,44 @@ class LifelongAtariAgent(object):
         self.learner.new_elementary_task()
     def end_episode(self):
         self.learner.reset()
+def get_games(args,type):
 
-def generate_environment_sequence(args):
-    environments = []
-    games = ["pong", "breakout", "bowling", "boxing", "battle_zone", # hitting target
+    if type == "custom":
+        environments=[]
+        games = ["pong", "breakout", "bowling", "boxing", "battle_zone", # hitting target
              "ms_pacman", "alien", "up_n_down", "time_pilot", "frostbite"]  # navigation
-    # all games have observation space Box(0, 255, (210, 160, 3), uint8)
-    if args.experiment_type!="lifelong":
-        games=[games[args.run]] # a single game with exactly 18 discrete actions
-    frameskip = 4
-    for game in games:
-        environments.append(AtariEnv(game=game,mode=None,difficulty=None,obs_type="image",frameskip=frameskip,
-                                     repeat_action_probability=0.0,
-                                     full_action_space=True
-                                     ))
-        print("game ",game)
-        print("obs ",environments[-1].observation_space)
-        print("act", environments[-1].action_space)
-    return environments
+        if args.experiment_type != "lifelong":
+            games = [games[args.run]]  # a single game with exactly 18 discrete actions
+        for game in games:
+            e = make_custom_environment(game,frameskip=4)
+            environments.append(e)
+            print("game ", game)
+            print("obs ", environments[-1].observation_space)
+            print("act", environments[-1].action_space)
+        return environments
+    else: #using preprocessing wrapper
+        environments = []
+        games = ["PongNoFrameskip-v4", "BreakoutNoFrameskip-v4", "BowlingNoFrameskip-v4", "BoxingNoFrameskip-v4", "BattleZoneNoFrameskip-v4",  # hitting target
+                 "MsPacmanNoFrameskip-v4", "AlienNoFrameskip-v4", "UpNDownNoFrameskip-v4", "TimePilotNoFrameskip-v4", "FrostbiteNoFrameskip-v4"]  # navigation
+        if args.experiment_type != "lifelong":
+            games = [games[args.run]]  # a single game with exactly 18 discrete actions
+        for game in games:
+            env = gym.make(game,full_action_space=True)
+            e = AtariPreprocessing(env,grayscale_newaxis=True)
+            # e._action_set = e.ale.getLegalActionSet()
+            # e.action_space = spaces.Discrete(len(e._action_set))
+            environments.append(e)
+            print("game ", game)
+            print("obs ", environments[-1].observation_space)
+            print("act", environments[-1].action_space)
+        return environments
+def make_custom_environment(game,frameskip):
+    e = AtariEnv(game=game, mode=None, difficulty=None, obs_type="image", frameskip=frameskip,
+                 repeat_action_probability=0.25,
+                 full_action_space=True
+                 )
+    return e
+
 def perform_episode(visual,env, agent, seed,total_t):
     print("starting environment")
     env.seed(seed)
@@ -121,12 +141,14 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print("will start run ",args.run)
     args.VISUAL=False
-    # args.method="DRQN"
-    # args.policies=1
-    # args.run=0
-    # args.filename="/home/david/LifelongRL"
+    args.method="DRQN"
+    args.policies=1
+    args.run=0
+    args.experiment_type="single"
+    args.filename="/home/david/LifelongRL"
+    args.environment_file=False
     filename=args.filename + "/"+args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
-    walltime = 60 * 3600  # 60 hours by default
+    walltime = 60*3600  # 60 hours by default
     if args.walltime:
         ftr = [3600, 60, 1]
         walltime = sum([a * b for a, b in zip(ftr, map(int, args.walltime.split(':')))])
@@ -143,30 +165,40 @@ if __name__ == '__main__':
     # will be namespaced). You can also dump to a tempdir if you'd
     # like: tempfile.mkdtemp().
 
-    envs = generate_environment_sequence(args)
-    inputs = envs[0].observation_space
-    num_actions = 18
-    agent = LifelongAtariAgent(args,filename,inputs.shape,range(len(ACTION_MEANING)))
-    total_t=0
-    stop=FRAMES_PER_TASK*len(envs)
-    num_episodes=0
+    envs = get_games(args, "preprocessing")
+    if args.environment_file:
+        # just to get stopping time
+        interrupted=True
+        agent = read_incremental(filename+"_agent") # load atari agent
+        agent.learner.load(filename)   # load the learner
+    else:
+        interrupted=False
+        inputs = envs[0].observation_space
+        agent = LifelongAtariAgent(args,filename,inputs.shape,range(len(ACTION_MEANING)))  # network has full action set, but only uses minimal for each task
+        agent.total_t=0
+        agent.num_episodes = 0
+        agent.learner.printDevelopmentAtari(frames=0)
+        agent.index = 0
     starttime = time.time()
-    agent.learner.printDevelopment()
-    for env in envs:
+
+    for i in range(agent.index,len(envs)):
+        env=envs[i]
         print("starting ",env.game)
-        taskblock_t=0
+        agent.taskblock_t=0 if not interrupted else agent.taskblock_t
         for item in env.__dict__.items():
             print(item)
-        while taskblock_t<FRAMES_PER_TASK:
-            print("starting new episode at taskblock_t: ", taskblock_t)
-            consumed_frames=perform_episode(args.VISUAL, env, agent, args.run*100000+num_episodes, total_t)
-            taskblock_t+=consumed_frames*env.frameskip
-            total_t+=consumed_frames # need to add because primitive data types not passed by reference
-            num_episodes+=1
-            agent.learner.printDevelopment()
+        while agent.taskblock_t<FRAMES_PER_TASK:
+            print("starting new episode at taskblock_t: ", agent.taskblock_t)
+            consumed_steps=perform_episode(args.VISUAL, env, agent, args.run*100000+agent.num_episodes, agent.total_t)
+            agent.taskblock_t+=consumed_steps*env.frameskip
+            agent.total_t+=consumed_steps # need to add because primitive data types not passed by reference
+            agent.num_episodes+=1
+            agent.learner.printDevelopmentAtari(frames=agent.total_t*env.frameskip)
             walltime_consumed = time.time() - starttime
             if walltime_consumed >= 0.9*walltime:
-                agent.learner.save(filename)
-                dump_incremental(filename + "_agent", agent)
-                print("stopping at time ", walltime_consumed)
-                exit(0)
+                break
+
+    agent.learner.save(filename)
+    dump_incremental(filename + "_agent", agent)
+    print("stopping at time ", walltime_consumed)
+    exit(0)

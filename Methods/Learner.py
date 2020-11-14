@@ -91,6 +91,12 @@ class CompleteLearner(object):
         self.stats.R_overTime.append(self.R)
     def printDevelopment(self):
         self.printR()
+    def printDevelopmentAtari(self,frames):
+        if self.Rfile is not None:
+            self.Rfile.write("%.2f \t %d \n" % (self.R, frames))
+            self.Rfile.flush()
+            os.fsync(self.Rfile)
+        self.stats.R_overTime.append(self.R)
     def printStatistics(self):
         pass
     def initStats(self):

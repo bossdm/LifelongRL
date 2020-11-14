@@ -214,10 +214,10 @@ class CustomNetworks(object):
         # model.add(TimeDistributed(Convolution2D(32, 8, 8, subsample=(4,4), activation='relu'), batch_input_shape=(input_shape)))
         # model.add(TimeDistributed(Convolution2D(64, 4, 4, subsample=(2,2), activation='relu')))
         # model.add(TimeDistributed(Convolution2D(64, 3, 3, activation='relu')))
-        model.add(TimeDistributed(Conv2D(32, (8, 8), strides=(4, 4), activation='relu'),
+        model.add(TimeDistributed(Conv2D(32, (8, 8), strides=4, activation='relu'),
                                   batch_input_shape=(input_shape)))
-        model.add(TimeDistributed(Conv2D(64, (4, 4), strides=(2, 2), activation='relu')))
-        model.add(TimeDistributed(Conv2D(64, (3, 3), strides=(1,1), activation='relu')))
+        model.add(TimeDistributed(Conv2D(64, (4, 4), strides=2, activation='relu')))
+        model.add(TimeDistributed(Conv2D(64, (3, 3), strides=1, activation='relu')))
         model.add(TimeDistributed(Flatten()))
 
         # Use all traces for training

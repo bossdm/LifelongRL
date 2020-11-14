@@ -261,7 +261,6 @@ class DRQN_Learner(CompleteLearner):
         self.old_input = self.new_input
 
 
-
     def add_experience(self):
         experience = [self.s_t, self.action_idx, self.r, self.s_t1]
         self.add_single_experience(experience)

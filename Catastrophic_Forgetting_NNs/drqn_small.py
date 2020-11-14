@@ -290,7 +290,7 @@ class DoubleDRQNAgent:
         # cf.
         # -hausknecht & stone https://arxiv.org/pdf/1507.06527.pdf
         # -Mnih et al https://arxiv.org/pdf/1312.5602.pdf
-        # however frame skipping not necessary
+
         self.gamma = 0.99
         #self.learning_rate = 0.00025  cf drqn small
 
@@ -299,13 +299,12 @@ class DoubleDRQNAgent:
         self.final_epsilon = 0.10 if final_epsilon is None else final_epsilon
         self.batch_size = 10 if batch_size is None else batch_size
         self.observe = 0
-
-        self.replay_start_size = 50000
-        self.exploration_frame = 20*self.replay_start_size
         self.frame_per_action = 4
+        self.replay_start_size = 50000./self.frame_per_action   # 50000 frames in atari
+        self.exploration_frame = 20*self.replay_start_size # 1M frames in atari
         self.trace_length = trace_length
         self.update_freq = 4 # Number of timesteps between training interval
-        self.update_target_freq = 10000 * self.frame_per_action * self.update_freq
+        self.update_target_freq = 10000 * self.update_freq  # total t will count steps not frames
         self.total_t = 0
 
         # Create replay memory
