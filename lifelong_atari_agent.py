@@ -141,13 +141,13 @@ if __name__ == '__main__':
     parser.add_argument("-x", dest="experiment_type", type=str, default="single")  # lifelong, initial, interference or test
     args = parser.parse_args()
     print("will start run ",args.run)
-    args.VISUAL=False
-    args.method="DRQN"
-    args.policies=1
-    args.run=0
-    args.experiment_type="single"
-    args.filename="/home/david/LifelongRL"
-    args.environment_file=False
+    # args.VISUAL=False
+    # args.method="DRQN"
+    # args.policies=1
+    # args.run=0
+    # args.experiment_type="single"
+    # args.filename="/home/david/LifelongRL"
+    # args.environment_file=False
     filename=args.filename + "/"+args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
     walltime = 60*3600  # 60 hours by default
     if args.walltime:

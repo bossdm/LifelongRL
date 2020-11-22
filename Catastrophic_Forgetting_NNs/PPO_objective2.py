@@ -8,10 +8,14 @@ import numpy as np
 import tensorflow.compat.v1 as tf
 
 import keras.backend as K
-import ray.experimental.tf_utils
+
+PARALLEL=False
+
+if PARALLEL:
+    import ray.experimental.tf_utils
 
 
-PARALLEL=True
+
 
 DEBUG_MODE=True
 
