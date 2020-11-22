@@ -348,6 +348,7 @@ class DRQN_Learner(CompleteLearner):
         self.s_t1 = np.array(self.observation)
         self.learn()
         self.setAction()
+        # ??? agent.learner.chosenAction = self.chosenAction  # cf. task drift (Homeostatic Pols)
     @overrides
     def cycle(self,agent,environment):
         if self.exploration_schedule:

@@ -9,7 +9,7 @@ from ExperimentUtils import dump_incremental, read_incremental
 
 import time
 
-FRAMES_PER_TASK=10*10**3 # for tuning
+FRAMES_PER_TASK=10*10**6 # for tuning
 #FRAMES_PER_TASK=50*10**6  # for full experiment
 #FRAMES_PER_EPISODE=18000 # according to Arcade learning environment paper
 
@@ -34,7 +34,7 @@ def get_A2C_configs(inputs,externalActions, filename, episodic):
         paramsdict["learning_rate"]=0.00025
     return {'num_neurons': None, 'task_features': [], 'use_task_bias': False,
             'use_task_gain': False, 'n_inputs': inputs, 'trace_length': 5,
-            'actions': deepcopy(externalActions), 'episodic': episodic,'file':filename, 'params':paramsdict
+            'actions': deepcopy(externalActions), 'episodic': episodic,'file':filename, 'params':paramsdict,"large_scale": True
             }
 
 
@@ -141,7 +141,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print("will start run ",args.run)
     args.VISUAL=False
-    args.method="DRQN"
+    args.method="PPO"
     args.policies=1
     args.run=0
     args.experiment_type="single"
@@ -181,6 +181,8 @@ if __name__ == '__main__':
         agent.index = 0
     starttime = time.time()
 
+    #print(agent.learner.__dict__)
+
     for i in range(agent.index,len(envs)):
         env=envs[i]
         print("starting ",env.game)
@@ -190,10 +192,10 @@ if __name__ == '__main__':
         while agent.taskblock_t<FRAMES_PER_TASK:
             print("starting new episode at taskblock_t: ", agent.taskblock_t)
             consumed_steps=perform_episode(args.VISUAL, env, agent, args.run*100000+agent.num_episodes, agent.total_t)
-            agent.taskblock_t+=consumed_steps*env.frameskip
+            agent.taskblock_t+=consumed_steps*env.frame_skip
             agent.total_t+=consumed_steps # need to add because primitive data types not passed by reference
             agent.num_episodes+=1
-            agent.learner.printDevelopmentAtari(frames=agent.total_t*env.frameskip)
+            agent.learner.printDevelopmentAtari(frames=agent.total_t*env.frame_skip)
             walltime_consumed = time.time() - starttime
             if walltime_consumed >= 0.9*walltime:
                 break

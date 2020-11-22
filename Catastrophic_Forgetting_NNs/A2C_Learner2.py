@@ -270,7 +270,7 @@ class A2C_Learner(CompleteLearner):
 class PPO_Learner(A2C_Learner):
     def __init__(self, task_features, use_task_bias, use_task_gain, n_inputs, trace_length, actions, file, episodic,
                  loss=None,
-                 target_model=False, num_neurons=80,
+                 target_model=False, num_neurons=80,large_scale=False,
                  agent=None, intervals=[],params={}):
         CompleteLearner.__init__(self, actions, file, episodic)
 
@@ -278,7 +278,7 @@ class PPO_Learner(A2C_Learner):
         self.action_size = len(actions)
         if agent is None:
             self.agent = PPO_Learner.init_agent(n_inputs, actions, trace_length, episodic,
-                                                task_features, use_task_bias, use_task_gain, num_neurons,params)
+                                                task_features, use_task_bias, use_task_gain, num_neurons,params,large_scale)
         self.state_size = PPO_Learner.set_state_size(n_inputs, trace_length)
         self.continue_experiment(intervals)
 
@@ -295,16 +295,43 @@ class PPO_Learner(A2C_Learner):
 
     @classmethod
     def init_agent(cls,n_inputs,actions,trace_length,episodic,task_features, use_task_bias, use_task_gain,
-                   num_neurons,params):
+                   num_neurons,params,large_scale):
         action_size = len(actions)
         state_size = A2C_Learner.set_state_size(n_inputs, trace_length)
         agent = PPO_Agent(state_size, action_size, trace_length,
-                                episodic=episodic,params=params)
+                                episodic=episodic,params=params,large_scale=large_scale)
         return agent
 
     def add_sample(self):
         if self.t >= self.agent.trace_length:
             self.agent.append_sample(self.s_t, self.action_idx, self.r)
+    @overrides
+    def atari_cycle(self, observation, reward, total_t, t):
+        self.total_t = total_t
+        self.agent.total_t = total_t
+        self.t = t
+        self.r = reward
+        self.set_atari_observation(observation)
+        self.setAction()
+        # ??? agent.learner.chosenAction = self.chosenAction  # cf. task drift (Homeostatic Pols)
+        if self.t >= self.agent.trace_length and len(self.agent.rewards) >= 1:
+            # print("appending state")
+            self.agent.states.append(self.s_t)  # add final state
+    def set_atari_observation(self,obs):
+        self.observation = obs  # in case of task drif
+        obs = np.expand_dims(self.observation, axis=0)
+        self.s_t = np.append(self.s_t[1:, :], obs, axis=0)
+
+        if len(self.agent.rewards) == self.agent.update_freq:
+            if self.testing:
+                return
+            self.agent.states.append(self.s_t)  # add final state
+            loss = self.agent.train_model(terminal=False)
+            if DEBUG_MODE:
+                print("loss=" + str(loss))
+    @overrides
+    def setAtariTerminalObservation(self,obs):
+        self.set_atari_observation(obs)
 
 
 

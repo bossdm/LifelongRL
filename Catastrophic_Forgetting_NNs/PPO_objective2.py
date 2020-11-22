@@ -12,16 +12,12 @@ import ray.experimental.tf_utils
 
 
 PARALLEL=True
-from keras.layers import LSTM,Dense
 
-from Catastrophic_Forgetting_NNs.CustomNetworks import CustomNetworks
-from keras.models import load_model, Model
-from keras.layers import Input
 DEBUG_MODE=True
 
 class Policy(object):
     """ NN-based policy approximation """
-    def __init__(self, obs_dim, act_dim,neurons,learning_rate,clipping,epochs,c1,c2,filename=None,w=None):
+    def __init__(self, obs_dim, act_dim,neurons,learning_rate,clipping,epochs,c1,c2,filename=None,w=None,large_scale=False):
         """
         Args:
             obs_dim: num observation dimensions (int)
@@ -37,6 +33,7 @@ class Policy(object):
         self.obs_dim = obs_dim
         self.act_dim = act_dim
         self.clipping = clipping
+        self.large_scale=large_scale
         if filename is None:
             self._build_graph(neurons,w)
             self._init_session()
@@ -189,80 +186,81 @@ class Policy(object):
 
         return actor,critic
 
-    def small_scale_ppo_lstm(self,num_neurons,w,label):
+    def large_scale_ppo_lstm(self,num_neurons,w,label):
+        # replace dense layer by:
+        # model.add(TimeDistributed(Conv2D(32, (8, 8), strides=4, activation='relu'),
+        #                           batch_input_shape=(input_shape)))
+        # model.add(TimeDistributed(Conv2D(64, (4, 4), strides=2, activation='relu')))
+        # model.add(TimeDistributed(Conv2D(64, (3, 3), strides=1, activation='relu')))
 
-        # x=Input(tensor=self.obs_ph)
-        # x = Dense(output_dim=num_neurons, activation='relu', batch_input_shape=(None,)+self.obs_dim)(x)
-        #
-        # # Use all traces for training
-        # # model.add(LSTM(512, return_sequences=True,  activation='tanh'))
-        # # model.add(TimeDistributed(Dense(output_dim=action_size, activation='linear')))
-        #
-        # # Use last trace for training
-        # x = LSTM(num_neurons, activation='tanh')(x)
-        # # if task_features:
-        # #     model.add(TaskSpecificLayer(task_features,use_task_bias,use_task_gain,units=action_size))
-        # # else:
-        # # Actor Stream
-        # actor = Dense(self.act_dim, activation=tf.nn.softmax)(x)
-        #
-        # # Critic Stream
-        # critic = Dense(1, activation='linear')(x)
-        #
-        # model = Model(input=self.obs_ph, output=[actor, critic])
-        self.num_neurons=num_neurons
-        # (pid=28537)(11, 80)
-        # (pid=28537)(80, )
-        # (pid=28537)(80, 320)
-        # (pid=28537)(80, 320)
-        # (pid=28537)(320, )
-        # (pid=28537)(80, 5)
-        # (pid=28537)(5, )
-        # (pid=28537)(80, 1)
-        # (pid=28537)(1, )
         if w is None:
-            hidden1=tf.layers.dense(inputs=self.obs_ph, units=num_neurons, name=label+"1",activation=tf.nn.relu)
+            hidden1=tf.keras.layers.TimeDistributed(tf.keras.layers.Conv2D(filters=32, kernel_size=8,
+                                    strides=4 ,name=label+"1",activation=tf.nn.relu,
+                                  batch_input_shape=self.obs_ph.shape))
         else:
             initw1 = tf.constant_initializer(w[0])
             #initb1 = tf.constant_initializer(w[1])
             #print("bias_W1 =", w[1])
-            hidden1 = tf.layers.dense(inputs=self.obs_ph, units=num_neurons, name=label + "1", activation=tf.nn.relu,
-                                      kernel_initializer=initw1)
-        # Use all traces for training
-        # model.add(LSTM(512, return_sequences=True,  activation='tanh'))
-        # model.add(TimeDistributed(Dense(output_dim=action_size, activation='linear')))
+            hidden1=tf.keras.layers.TimeDistributed(tf.keras.layers.Conv2D(filters=32, kernel_size=8 , strides=4 ,
+                                     name=label+"1",activation=tf.nn.relu,kernel_initializer=initw1,
+                                  batch_input_shape=self.obs_ph.shape))
 
-        # Use last trace for training
         if w is None:
-            hidden2=tf.keras.layers.LSTM(units=num_neurons, name=label+"2",activation=tf.tanh)(hidden1)
+            hidden1b=tf.keras.layers.TimeDistributed(tf.keras.layers.Conv2D(
+                filters=64, kernel_size=(4, 4),
+                strides=2, name=label + "1b",
+                activation=tf.nn.relu))
         else:
-            initw2 = tf.constant_initializer(w[2])
-            initr2 = tf.constant_initializer(w[3])
+            initw1b = tf.constant_initializer(w[2])
+            #initb1 = tf.constant_initializer(w[1])
+            #print("bias_W1 =", w[1])
+            hidden1b=tf.keras.layers.TimeDistributed(tf.keras.layers.Conv2D(input_shape=hidden1.output_shape,filters=64, kernel_size=(4,4) , strides=2 ,
+                                     name=label+"1b",activation=tf.nn.relu,kernel_initializer=initw1b))
+        if w is None:
+            hidden1c=tf.keras.layers.TimeDistributed(tf.keras.layers.Conv2D(filters=64, kernel_size=(3,3),
+                                                                            strides=1 ,name=label+"1c",activation=tf.nn.relu))
+        else:
+            initw1c = tf.constant_initializer(w[4])
+            #initb1 = tf.constant_initializer(w[1])
+            #print("bias_W1 =", w[1])
+            hidden1c=tf.keras.layers.TimeDistributed(tf.keras.layers.Conv2D(filters=64, kernel_size=(3,3) , strides=1 ,
+                                     name=label+"1c",activation=tf.nn.relu,kernel_initializer=initw1c))
+        if w is None:
+            hidden2=tf.keras.layers.LSTM(units=512, name=label+"2",activation=tf.tanh)
+        else:
+            initw2 = tf.constant_initializer(w[6])
+            initr2 = tf.constant_initializer(w[7])
             #initb2 = tf.constant_initializer(w[4])
             #print("bias LSTM =", w[4])
-            hidden2 = tf.keras.layers.LSTM(units=num_neurons, name=label + "2", activation=tf.tanh,
-                                      kernel_initializer=initw2,recurrent_initializer=initr2)(hidden1)
+            hidden2 = tf.keras.layers.LSTM(units=512, name=label + "2", activation=tf.tanh,
+                                      kernel_initializer=initw2,recurrent_initializer=initr2)
+
+        h1 = hidden1(self.obs_ph)
+        h1b = hidden1b(h1)
+        h1c=hidden1c(h1b)
+        h1c = tf.keras.layers.TimeDistributed(tf.keras.layers.Flatten())(h1c)
+        h2=hidden2(h1c)
         # if task_features:
         #     model.add(TaskSpecificLayer(task_features,use_task_bias,use_task_gain,units=action_size))
         # else:
         # Actor Stream
         if w is None:
-            actor = tf.layers.dense(inputs=hidden2,units=self.act_dim, name=label+"actor", activation=tf.nn.softmax)
+            actor = tf.layers.dense(inputs=h2,units=self.act_dim, name=label+"actor", activation=tf.nn.softmax)
         else:
-            initw3 = tf.constant_initializer(w[5])
+            initw3 = tf.constant_initializer(w[8])
             #initb3 = tf.constant_initializer(w[6])
             #print("bias_act =", w[6])
-            actor = tf.layers.dense(inputs=hidden2, units=self.act_dim, name=label + "actor", activation=tf.nn.softmax,
+            actor = tf.layers.dense(inputs=h2, units=self.act_dim, name=label + "actor", activation=tf.nn.softmax,
                                     kernel_initializer=initw3)
 
         # Critic Stream
         if w is None:
-            critic = tf.layers.dense(inputs=hidden2,units=1, name=label+"3",activation=None)  # None-> linear
+            critic = tf.layers.dense(inputs=h2,units=1, name=label+"3",activation=None)  # None-> linear
         else:
-            initw4 = tf.constant_initializer(w[7])
+            initw4 = tf.constant_initializer(w[10])
             #initb4 = tf.constant_initializer(w[8])
             #print("bias critic", w[8])
-            critic = tf.layers.dense(inputs=hidden2, units=1, name=label + "3", activation=None,
+            critic = tf.layers.dense(inputs=h2, units=1, name=label + "3", activation=None,
                                     kernel_initializer=initw4)
 
         return actor,critic
@@ -271,7 +269,10 @@ class Policy(object):
         """ Neural net for policy approximation function
         """
         # hidden layer sizes determined by obs_dim and act_dim (hid2 is geometric mean)
-        self.prob,self.value=self.small_scale_ppo_lstm(num_neurons,w,label="model")
+        if self.large_scale:
+            self.prob, self.value = self.large_scale_ppo_lstm(num_neurons, w, label="model")
+        else:
+            self.prob,self.value=self.small_scale_ppo_lstm(num_neurons,w,label="model")
 
 
 
