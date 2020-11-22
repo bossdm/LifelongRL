@@ -270,8 +270,9 @@ class A2C_Learner(CompleteLearner):
 class PPO_Learner(A2C_Learner):
     def __init__(self, task_features, use_task_bias, use_task_gain, n_inputs, trace_length, actions, file, episodic,
                  loss=None,
-                 target_model=False, num_neurons=80,large_scale=False,
+                 target_model=False, num_neurons=80,large_scale=False,terminal_known=False,
                  agent=None, intervals=[],params={}):
+        self.terminal_states_known = terminal_known
         CompleteLearner.__init__(self, actions, file, episodic)
 
         self.init_variables()
@@ -314,9 +315,6 @@ class PPO_Learner(A2C_Learner):
         self.set_atari_observation(observation)
         self.setAction()
         # ??? agent.learner.chosenAction = self.chosenAction  # cf. task drift (Homeostatic Pols)
-        if self.t >= self.agent.trace_length and len(self.agent.rewards) >= 1:
-            # print("appending state")
-            self.agent.states.append(self.s_t)  # add final state
     def set_atari_observation(self,obs):
         self.observation = obs  # in case of task drif
         obs = np.expand_dims(self.observation, axis=0)
@@ -331,7 +329,10 @@ class PPO_Learner(A2C_Learner):
                 print("loss=" + str(loss))
     @overrides
     def setAtariTerminalObservation(self,obs):
-        self.set_atari_observation(obs)
+        self.observation = obs  # in case of task drif
+        obs = np.expand_dims(self.observation, axis=0)
+        self.s_t = np.append(self.s_t[1:, :], obs, axis=0)
+        self.agent.states.append(self.s_t)  # add final state
 
 
 

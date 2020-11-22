@@ -34,7 +34,8 @@ def get_A2C_configs(inputs,externalActions, filename, episodic):
         paramsdict["learning_rate"]=0.00025
     return {'num_neurons': None, 'task_features': [], 'use_task_bias': False,
             'use_task_gain': False, 'n_inputs': inputs, 'trace_length': 5,
-            'actions': deepcopy(externalActions), 'episodic': episodic,'file':filename, 'params':paramsdict,"large_scale": True
+            'actions': deepcopy(externalActions), 'episodic': episodic,'file':filename, 'params':paramsdict,
+            "large_scale": True, "terminal_known": True
             }
 
 
