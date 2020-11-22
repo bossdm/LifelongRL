@@ -142,7 +142,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print("will start run ",args.run)
     args.VISUAL=False
-    args.method="PPO"
+    args.method="DRQN"
     args.policies=1
     args.run=0
     args.experiment_type="single"

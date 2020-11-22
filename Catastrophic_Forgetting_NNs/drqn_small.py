@@ -116,7 +116,7 @@ class NonEpisodicReplayMemory(ReplayMemory):
             start = end - trace_length
             sampledTraces[i]=self.get_trace(start,end)
         sampledTraces = np.array(sampledTraces)
-        return sampledTraces #,[]
+        return sampledTraces ,[False for i in range(batch_size)]
 
 class EpisodicReplayMemory(ReplayMemory):
     """
@@ -176,17 +176,17 @@ class EpisodicReplayMemory(ReplayMemory):
     def sample(self, batch_size, trace_length):
         sampled_episodes = np.random.choice(self.max_ep+1, batch_size)
         sampledTraces = [None for i in range(batch_size)]
-        #terminals=[False for i in range(batch_size)]
+        terminals=[False for i in range(batch_size)]
         for i in range(batch_size):
             #print(len(episode))
             episode=self.buffer[sampled_episodes[i]]
             point = np.random.randint(0, len(episode) + 1 - trace_length)
             sampledTraces[i]=episode[point:point + trace_length]
-            # if point +trace_length == len(episode):
-            #     terminals[i]=True
+            if point +trace_length == len(episode):
+                 terminals[i]=True
 
         sampledTraces = np.array(sampledTraces)
-        return sampledTraces #,terminals
+        return sampledTraces ,terminals
 
     def get_trace(self,start,end):
          return self.buffer[start:end]
@@ -300,8 +300,8 @@ class DoubleDRQNAgent:
         self.batch_size = 10 if batch_size is None else batch_size
         self.observe = 0
         self.frame_per_action = 4
-        self.replay_start_size = 50000./self.frame_per_action   # 50000 frames in atari
-        self.exploration_frame = 20*self.replay_start_size # 1M frames in atari
+        self.replay_start_size = 5000./self.frame_per_action   # 50000 frames in atari
+        self.exploration_frame = 1*self.replay_start_size # 1M frames in atari
         self.trace_length = trace_length
         self.update_freq = 4 # Number of timesteps between training interval
         self.update_target_freq = 10000 * self.update_freq  # total t will count steps not frames
@@ -371,7 +371,7 @@ class DoubleDRQNAgent:
     def check_replay_ready(self):
 
         return self.total_t >= self.replay_start_size and  self.total_t >= self.batch_size + self.trace_length
-    def compute_target(self,update_input,target_update_input,batch_size,action,reward):
+    def compute_target(self,update_input,target_update_input,batch_size,action,reward,terminals):
         target = self.model.predict(update_input)  # 32x3
         if self.target_model is not None:
             target_val = self.target_model.predict(target_update_input)  # 32x3
@@ -384,13 +384,14 @@ class DoubleDRQNAgent:
             target_val = val
 
         for i in range(batch_size):
-            a = np.argmax(val[i])
-            # if self.episodic and terminals[i]:
-            #     target[i][int(action[i][-1])] = reward[i][-1]
-            # else:
-            target[i][int(action[i][-1])] = reward[i][-1] + self.gamma * (target_val[i][a])
+
+            if self.episodic and terminals[i]:
+                target[i][int(action[i][-1])] = reward[i][-1]
+            else:
+                a = np.argmax(val[i])
+                target[i][int(action[i][-1])] = reward[i][-1] + self.gamma * (target_val[i][a])
         return target
-    def compute_output_and_target(self,update_input,target_update_input,batch_size,action,reward):
+    def compute_output_and_target(self,update_input,target_update_input,batch_size,action,reward,terminals):
         target = self.model.predict(update_input)  # 32x3
         if self.target_model is not None:
             target_val = self.target_model.predict(target_update_input)  # 32x3
@@ -403,8 +404,11 @@ class DoubleDRQNAgent:
             target_val = val
 
         for i in range(batch_size):
-            a = np.argmax(val[i])
-            target[i][int(action[i][-1])] = reward[i][-1] + self.gamma * (target_val[i][a])
+            if self.episodic and terminals[i]:
+                target[i][int(action[i][-1])] = reward[i][-1]
+            else:
+                a = np.argmax(val[i])
+                target[i][int(action[i][-1])] = reward[i][-1] + self.gamma * (target_val[i][a])
         return val, target
 
 
@@ -412,7 +416,7 @@ class DoubleDRQNAgent:
     def _train_replay(self,batch_size):
 
         #, terminals
-        sample_traces = self.memory.sample(batch_size, self.trace_length)  # 32x8x4
+        sample_traces, terminals = self.memory.sample(batch_size, self.trace_length)  # 32x8x4
 
         # Shape (batch_size, trace_length, img_rows, img_cols, color_channels)
         update_input = np.zeros(((batch_size,) + self.state_size))  # 32x8x64x64x3
@@ -429,7 +433,7 @@ class DoubleDRQNAgent:
                 target_update_input[i, j, :] = sample_traces[i][j][3]
 
         # Only use the last trace for training
-        target=self.compute_target(update_input,target_update_input,batch_size,action,reward) #,terminals
+        target=self.compute_target(update_input,target_update_input,batch_size,action,reward,terminals)
         loss = self.model.train_on_batch(update_input, target)
         # try:
         #     loss = self.model.train_on_batch(update_input, target)
@@ -484,7 +488,7 @@ class FeatureDoubleDRQNAgent(DoubleDRQNAgent):
             action_idx = np.argmax(q)
         return action_idx
 
-    def compute_target(self,update_input,target_update_input,batch_size,action,reward):
+    def compute_target(self,update_input,target_update_input,batch_size,action,reward,terminals):
         target, features = self.model.predict(update_input)  # 32x3
         if self.target_model is not None:
             target_val,_ = self.target_model.predict(target_update_input)  # 32x3
@@ -497,11 +501,11 @@ class FeatureDoubleDRQNAgent(DoubleDRQNAgent):
             target_val = val
 
         for i in range(batch_size):
-            a = np.argmax(val[i])
-            # if self.episodic and terminals[i]:
-            #     target[i][int(action[i][-1])] = reward[i][-1]
-            # else:
-            target[i][int(action[i][-1])] = reward[i][-1] + self.gamma * (target_val[i][a])
+            if self.episodic and terminals[i]:
+                target[i][int(action[i][-1])] = reward[i][-1]
+            else:
+                a = np.argmax(val[i])
+                target[i][int(action[i][-1])] = reward[i][-1] + self.gamma * (target_val[i][a])
         return [target, features]
 
 
@@ -633,7 +637,7 @@ class MultiTaskDoubleDRQNAgent(DoubleDRQNAgent):
         # Do the training
         goals=self.memory.get_replay_ready_goals(self.replay_start_size,self.batch_size+self.trace_length)
         if not goals: return None,None
-        sample_traces = self.memory.sample(goals,batch_size, self.trace_length)  # 32x8x4
+        sample_traces, terminals = self.memory.sample(goals,batch_size, self.trace_length)  # 32x8x4
 
         # Shape (batch_size, trace_length, img_rows, img_cols, color_channels)
         update_input = np.zeros(((batch_size,) + self.state_size))  # 32x8x64x64x3
@@ -664,8 +668,11 @@ class MultiTaskDoubleDRQNAgent(DoubleDRQNAgent):
 
 
         for i in range(batch_size):
-            a = np.argmax(val[i])
-            target[i][int(action[i][-1])] = reward[i][-1] + self.gamma * (target_val[i][a])
+            if terminals[i]:
+                target[i][int(action[i][-1])] = reward[i][-1]
+            else:
+                a = np.argmax(val[i])
+                target[i][int(action[i][-1])] = reward[i][-1] + self.gamma * (target_val[i][a])
 
 
         loss = self.model.train_on_batch(update_input, target)
