@@ -300,8 +300,8 @@ class DoubleDRQNAgent:
         self.batch_size = 10 if batch_size is None else batch_size
         self.observe = 0
         self.frame_per_action = 4
-        self.replay_start_size = 5000./self.frame_per_action   # 50000 frames in atari
-        self.exploration_frame = 1*self.replay_start_size # 1M frames in atari
+        self.replay_start_size = 50000./self.frame_per_action   # 50000 frames in atari
+        self.exploration_frame = 20*self.replay_start_size # 1M frames in atari
         self.trace_length = trace_length
         self.update_freq = 4 # Number of timesteps between training interval
         self.update_target_freq = 10000 * self.update_freq  # total t will count steps not frames
