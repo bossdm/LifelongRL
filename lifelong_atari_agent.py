@@ -142,14 +142,14 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print("will start run ",args.run)
     # args.VISUAL=False
-    # args.method="DRQN"
+    # args.method="PPO"
     # args.policies=1
     # args.run=0
     # args.experiment_type="single"
     # args.filename="/home/david/LifelongRL"
-    # args.environment_file=False
+    # args.environment_file=True
     filename=args.filename + "/"+args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
-    walltime = 60*3600  # 60 hours by default
+    walltime = 10 #60*3600  # 60 hours by default
     if args.walltime:
         ftr = [3600, 60, 1]
         walltime = sum([a * b for a, b in zip(ftr, map(int, args.walltime.split(':')))])

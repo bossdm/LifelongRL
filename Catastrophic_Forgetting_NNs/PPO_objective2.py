@@ -68,13 +68,16 @@ class Policy(object):
         #     self._procedures()
         self._build_graph(neurons)
         self._init_session()
+        #self.print_parameters()
         with self.g.as_default():
             model_saver = tf.train.Saver()
             model_saver.restore(self.sess, filename)
         print("Model restored.")
         # print("model:")
-        # self.print_some_parameters()
-
+        #self.print_parameters()
+    def print_parameters(self):
+        for W in self.get_all_weights():
+            print(W)
     def _procedures(self):
         self._logprob()
         self._entropy()
