@@ -225,7 +225,7 @@ class CustomNetworks(object):
         #model.add(TimeDistributed(Dense(output_dim=action_size, activation='linear')))
 
         # Use last trace for training
-        model.add(LSTM(512,  activation='tanh'))
+        model.add(LSTM(256,  activation='tanh'))
         if task_features:
             model.add(TaskSpecificLayer(task_features,use_task_bias,use_task_gain))
         else:

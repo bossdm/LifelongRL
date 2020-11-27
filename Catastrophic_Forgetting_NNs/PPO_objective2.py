@@ -233,7 +233,7 @@ class Policy(object):
             hidden1c=tf.keras.layers.TimeDistributed(tf.keras.layers.Conv2D(filters=64, kernel_size=(3,3) , strides=1 ,
                                      name=label+"1c",activation=tf.nn.relu,kernel_initializer=initw1c))
         if w is None:
-            hidden2=tf.keras.layers.LSTM(units=512, name=label+"2",activation=tf.tanh)
+            hidden2=tf.keras.layers.LSTM(units=256, name=label+"2",activation=tf.tanh)
         else:
             initw2 = tf.constant_initializer(w[6])
             initr2 = tf.constant_initializer(w[7])
