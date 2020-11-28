@@ -216,6 +216,7 @@ class A2C_Learner(CompleteLearner):
         increment= t - self.total_t
         self.t += increment
         self.total_t += increment
+        self.agent.total_t = self.total_t
 
 
     @overrides
@@ -307,10 +308,7 @@ class PPO_Learner(A2C_Learner):
         if self.t >= self.agent.trace_length:
             self.agent.append_sample(self.s_t, self.action_idx, self.r)
     @overrides
-    def atari_cycle(self, observation, reward, total_t, t):
-        self.total_t = total_t
-        self.agent.total_t = total_t
-        self.t = t
+    def atari_cycle(self, observation, reward):
         self.r = reward
         self.set_atari_observation(observation)
         self.setAction()

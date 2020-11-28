@@ -273,10 +273,12 @@ class DRQN_Learner(CompleteLearner):
                 print("this experience:" + str(self.episode_buf[-1]))
         else:
             self.agent.memory.add(experience)
+
     def setTime(self,t):
         increment= t - self.total_t
         self.t += increment
         self.total_t += increment
+        self.agent.total_t = self.total_t
 
 
     def update_target(self):
@@ -339,10 +341,7 @@ class DRQN_Learner(CompleteLearner):
         self.chosenAction.perform([agent,environment])
         #self.t = environment.t
     @overrides
-    def atari_cycle(self,observation, reward, total_t, t):
-        self.total_t = total_t
-        self.agent.total_t = total_t
-        self.t = t
+    def atari_cycle(self,observation, reward):
         self.observation = observation  # in case of task drif
         self.r = reward
         self.s_t1 = np.array(self.observation)

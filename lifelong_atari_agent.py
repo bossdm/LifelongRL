@@ -13,11 +13,11 @@ FRAMES_PER_TASK=10*10**6 # for tuning
 #FRAMES_PER_TASK=50*10**6  # for full experiment
 #FRAMES_PER_EPISODE=18000 # according to Arcade learning environment paper
 
-def get_DQN_configs(inputs,externalActions,filename,episodic):
-    d=get_DQN_agent_configs(inputs, externalActions, filename, episodic)
+def get_DRQN_configs(inputs,externalActions,filename,episodic):
+    d=get_DRQN_agent_configs(inputs, externalActions, filename, episodic)
     d.update({'file': filename, 'loss': None})
     return d
-def get_DQN_agent_configs(inputs,externalActions,filename,episodic):
+def get_DRQN_agent_configs(inputs,externalActions,filename,episodic):
     if os.environ["tuning_lr"]:
         lr=float(os.environ["tuning_lr"])
     else:
@@ -41,12 +41,13 @@ def get_A2C_configs(inputs,externalActions, filename, episodic):
 
 class LifelongAtariAgent(object):
     """The world's simplest agent!"""
-    def __init__(self, args,filename,inputs, externalActions):
-        self.learner = select_learner(args,inputs,externalActions,filename)
-    def act(self,obs, reward, done, total_t, t):
+    def __init__(self, args,filename,inputs, externalActions,n_tasks):
+        self.learner = select_learner(args,inputs,externalActions,filename,n_tasks)
+    def act(self,obs, reward, done, total_t):
 
         self.learner.setReward(reward)
-        self.learner.atari_cycle(obs, reward, total_t, t)
+        self.learner.setTime(total_t)
+        self.learner.atari_cycle(obs, reward)
         return self.learner.chosenAction
     def set_term(self,obs):
         self.learner.setAtariTerminalObservation(obs)
@@ -103,7 +104,7 @@ def perform_episode(visual,env, agent, seed,total_t):
     t=0
     agent.new_episode()
     while True:
-        action = agent.act(ob, reward, done, total_t, t)
+        action = agent.act(ob, reward, done, total_t)
         ob, reward, done, _ = env.step(action)
         if done:
             agent.set_term(ob)
@@ -123,15 +124,49 @@ def perform_episode(visual,env, agent, seed,total_t):
     return consumed_frames
 
 
-def select_learner(args,inputs,externalActions,filename,episodic=True):
+def select_learner(args,inputs,externalActions,filename,n_tasks,episodic=True):
     if args.method == "PPO":
         from Catastrophic_Forgetting_NNs.A2C_Learner2 import PPO_Learner
         settings = get_A2C_configs(inputs, externalActions, filename, episodic)
         method = PPO_Learner(**settings)
     elif args.method == "DRQN":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import DRQN_Learner
-        settings=get_DQN_configs(inputs,externalActions,filename,episodic)
+        settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
         method = DRQN_Learner( **settings)
+    elif args.method == "TaskDrift_DRQN":
+        from Lifelong.HomeostaticPols import HomeostaticPol
+        from Lifelong.TaskDriftDRQN import TaskDriftDRQN
+        from Configs.InstructionSetsMultiExp import homeostatic_params
+        # batch_size=32
+        num_pols = args.policies
+        pols = [None] * num_pols
+        for pol in range(num_pols):
+            task_features = []
+
+            # task_features, use_task_bias, use_task_gain, n_inputs, trace_length, actions, file, episodic, loss = None
+            DRQN_params=get_DRQN_configs(inputs,externalActions,filename,episodic)
+            pols[pol] = TaskDriftDRQN(DRQN_params)
+
+        method = HomeostaticPol(episodic=episodic, actions=externalActions, filename=filename, pols=pols, weights=None,
+                                **homeostatic_params)
+        method.set_tasks({(i,): 1. / float(n_tasks) for i in range(n_tasks)})
+    elif args.method == "TaskDrift_PPO":
+        from Lifelong.HomeostaticPols import HomeostaticPol
+        from Lifelong.TaskDrift_PPO2 import TaskDriftPPO
+        from Configs.InstructionSetsMultiExp import homeostatic_params
+        # batch_size=32
+        num_pols = args.policies
+        pols = [None] * num_pols
+        for pol in range(num_pols):
+            task_features = []
+            # task_features, use_task_bias, use_task_gain, n_inputs, trace_length, actions, file, episodic, loss = None
+            PPO_params=get_A2C_configs(inputs,externalActions,filename,episodic)
+            pols[pol] = TaskDriftPPO(PPO_params)
+
+        method = HomeostaticPol(episodic=episodic, actions=externalActions, filename=filename, pols=pols, weights=None,
+                                **homeostatic_params)
+        method.set_tasks({(i,): 1. / float(n_tasks) for i in range(n_tasks)})
+    #elif: 1to1 not needed since we just converge on the task here, can use single_task runs
     else:
         raise Exception("learner ",args.method," not supported")
     return method
@@ -141,15 +176,15 @@ if __name__ == '__main__':
     parser.add_argument("-x", dest="experiment_type", type=str, default="single")  # lifelong, initial, interference or test
     args = parser.parse_args()
     print("will start run ",args.run)
-    # args.VISUAL=False
-    # args.method="PPO"
-    # args.policies=1
-    # args.run=0
-    # args.experiment_type="single"
-    # args.filename="/home/david/LifelongRL"
-    # args.environment_file=True
+    args.VISUAL=False
+    args.method="TaskDrift_PPO"
+    args.policies=2
+    args.run=0
+    args.experiment_type="single"
+    args.filename="/home/david/LifelongRL"
+    args.environment_file=False
     filename=args.filename + "/"+args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
-    walltime = 10 #60*3600  # 60 hours by default
+    walltime = 60*3600 #60*3600  # 60 hours by default
     if args.walltime:
         ftr = [3600, 60, 1]
         walltime = sum([a * b for a, b in zip(ftr, map(int, args.walltime.split(':')))])
@@ -175,7 +210,7 @@ if __name__ == '__main__':
     else:
         interrupted=False
         inputs = envs[0].observation_space
-        agent = LifelongAtariAgent(args,filename,inputs.shape,range(len(ACTION_MEANING)))  # network has full action set, but only uses minimal for each task
+        agent = LifelongAtariAgent(args,filename,inputs.shape,range(len(ACTION_MEANING)),len(envs))  # network has full action set, but only uses minimal for each task
         agent.total_t=0
         agent.num_episodes = 0
         agent.learner.printDevelopmentAtari(frames=0)
@@ -187,7 +222,9 @@ if __name__ == '__main__':
     for i in range(agent.index,len(envs)):
         env=envs[i]
         print("starting ",env.game)
-        agent.taskblock_t=0 if not interrupted else agent.taskblock_t
+        if not interrupted:
+            agent.taskblock_t=0
+            agent.learner.new_task([i])
         for item in env.__dict__.items():
             print(item)
         while agent.taskblock_t<FRAMES_PER_TASK:
@@ -200,6 +237,7 @@ if __name__ == '__main__':
             walltime_consumed = time.time() - starttime
             if walltime_consumed >= 0.9*walltime:
                 break
+        agent.learner.end_task()
 
     agent.learner.save(filename)
     dump_incremental(filename + "_agent", agent)

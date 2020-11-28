@@ -1106,7 +1106,28 @@ class HomeostaticPol(CompleteLearner):
            # self.make_policy_space_picture()
        # for pol in self.pols:
        #      pol.printDevelopment()
+    @overrides
+    def printDevelopmentAtari(self,frames):
+        CompleteLearner.printDevelopmentAtari(self,frames)
+        if self.t % self.policy_space_picture_freq == 0:
 
+            if self.do_taskdrift():
+                self.stats.develop()
+                self.get_performance_diversity()
+                self.stats.diversity.append(self.get_diversity())
+
+                self.stats.provision.append([prov for prov in self.provision])
+                for task in self.task_coords:
+                    self.stats.snapshot_taskcoords[task].append(self.task_coords[task])
+                    for pol in range(self.num_policies):
+                        self.stats.mindist_performances[task][pol].append(self.avg_velocities[task][pol])
+
+            else:
+                if self.num_policies > 1:
+                    self.stats.diversity.append(self.get_diversity())
+            # self.make_policy_space_picture()
+        # for pol in self.pols:
+        #      pol.printDevelopment()
     @overrides
     def initStats(self):
         pass # initialise instead at set_tasks
@@ -1161,7 +1182,23 @@ class HomeostaticPol(CompleteLearner):
         self.pols[self.current_pol].cycle(agent,environment)
         assert np.array_equal(self.observation,self.pols[self.current_pol].observation), "observation mismatch"
         assert np.array_equal(self.chosenAction,self.pols[self.current_pol].chosenAction), "action mismatch"
+    @overrides
+    def atari_cycle(self,observation, reward):
 
+        time=self.pols[self.current_pol].t
+        if not self.episodic and not self.policy_chosen and time % self.decision_frequency == 0 :
+            self.end_pol()
+            self.choose_policy()
+        if DEBUG_MODE:
+            print("cycle outer:"+str(self))
+            print("pol t = %d" % (self.t))
+            print("current pol=%d"%(self.current_pol))
+
+        self.pols[self.current_pol].atari_cycle(observation, reward)
+        self.observation = self.pols[self.current_pol].observation
+        self.chosenAction = self.pols[self.current_pol].chosenAction
+        assert np.array_equal(self.observation,self.pols[self.current_pol].observation), "observation mismatch"
+        assert np.array_equal(self.chosenAction,self.pols[self.current_pol].chosenAction), "action mismatch"
 
     # setReward and setTime are done outside the cycle, and require difference in top level vs bottom level
     @overrides
