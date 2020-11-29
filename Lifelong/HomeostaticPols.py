@@ -1156,6 +1156,10 @@ class HomeostaticPol(CompleteLearner):
     def setTerminalObservation(self,agent,environment):
         self.pols[self.current_pol].setTerminalObservation(agent,environment)
 
+    @overrides
+    def setAtariTerminalObservation(self,obs):
+        self.pols[self.current_pol].setAtariTerminalObservation(obs)
+        self.observation = self.pols[self.current_pol].observation
 
     @overrides
     def printPolicy(self):
