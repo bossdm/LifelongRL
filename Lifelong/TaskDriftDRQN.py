@@ -8,9 +8,9 @@ from keras.models import Model, load_model, clone_model
 
 class TaskDriftDRQN(DRQN_Learner,TaskDriftBase):
     epsilon_change=False
-    def __init__(self,DRQN_Params):
+    def __init__(self,DRQN_Params,episodic_performance=False):
         DRQN_Learner.__init__(self,**deepcopy(DRQN_Params))
-        TaskDriftBase.__init__(self)
+        TaskDriftBase.__init__(self, episodic_performance)
         self.DRQN_Params=DRQN_Params
         self.task_t={}
         self.task_R={}

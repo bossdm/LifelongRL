@@ -3,8 +3,10 @@ from abc import abstractmethod
 
 class TaskDriftBase(object):
 
-    def __init__(self):
+    def __init__(self,episodic_performance):
         self.velocity={}
+        self.episodic_performance = episodic_performance
+        self.num_episodes = 0
     @abstractmethod
     def create_similar_policy(self):
         """
@@ -27,7 +29,7 @@ class TaskDriftBase(object):
         ignored_R+=self.R
         return ignored_t, ignored_R
     def get_avg_velocity(self,current_feature=None):
-        task_t=self.get_task_t(current_feature)
+        task_t=self.get_task_t(current_feature) if not self.episodic_performance else self.num_episodes
         if task_t == 0:
             return -float("inf") # since no time has passed, any policy that has some experience will have better velocity
         task_R=self.get_task_R(current_feature)
@@ -41,7 +43,8 @@ class TaskDriftBase(object):
         not necessarily overridden
         :return:
         """
-        pass
+        if self.episodic_performance:
+            self.num_episodes+=1
 
     def set_tasks(self,occurence_weights):
         self.total_num_tasks=len(occurence_weights)

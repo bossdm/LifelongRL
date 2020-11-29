@@ -661,6 +661,7 @@ class HomeostaticPol(CompleteLearner):
                 self.update_velocity()
 
     def update_velocity(self):
+        #print("pol ",self.current_pol)
         V_avg = self.pols[self.current_pol].get_avg_velocity(self.current_feature)
         self.avg_velocities[self.current_feature][self.current_pol] = V_avg
 
