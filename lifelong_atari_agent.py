@@ -9,7 +9,7 @@ from ExperimentUtils import dump_incremental, read_incremental
 
 import time
 
-FRAMES_PER_TASK=10*10**6 # for tuning
+FRAMES_PER_TASK=50*10**6 # for tuning
 #FRAMES_PER_TASK=50*10**6  # for full experiment
 #FRAMES_PER_EPISODE=18000 # according to Arcade learning environment paper
 
