@@ -48,7 +48,6 @@ class LifelongMountaincarAgent(object):
 
         self.learner.setReward(reward)
         self.learner.setTime(total_t)
-        obs= obs/255.
         self.learner.atari_cycle(obs, reward)
         return self.learner.chosenAction
     def set_term(self,obs):
