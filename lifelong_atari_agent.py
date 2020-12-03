@@ -47,6 +47,7 @@ class LifelongAtariAgent(object):
 
         self.learner.setReward(reward)
         self.learner.setTime(total_t)
+        obs= obs/255.
         self.learner.atari_cycle(obs, reward)
         return self.learner.chosenAction
     def set_term(self,obs):
@@ -178,8 +179,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print("will start run ",args.run)
     # args.VISUAL=False
-    # args.method="TaskDrift_PPO"
-    # args.policies=2
+    # args.method="DRQN"
+    # args.policies=1
     # args.run=1
     # args.experiment_type="single"
     # args.filename="/home/david/LifelongRL"
