@@ -33,7 +33,7 @@ class DRQN_Learner(CompleteLearner):
 
     def __init__(self,task_features,use_task_bias,use_task_gain,n_inputs,trace_length,actions,file,episodic,loss=None,
                  target_model=False,num_neurons=80,epsilon_change=False,init_epsilon=None,final_epsilon=None,
-                 agent=None,intervals=[],num_features=0,learning_rate=0.10):
+                 agent=None,intervals=[],num_features=0,learning_rate=0.10,recurrent=True):
         CompleteLearner.__init__(self,actions,file,episodic)
         self.init_variables(epsilon_change)
 
@@ -41,8 +41,10 @@ class DRQN_Learner(CompleteLearner):
         if agent is None:
             self.agent=DRQN_Learner.init_agent(n_inputs,actions,trace_length,episodic,
                                                task_features, use_task_bias, use_task_gain, num_neurons,
-                                                   target_model,init_epsilon,final_epsilon,num_features,learning_rate)
-        self.state_size = DRQN_Learner.set_state_size(n_inputs, trace_length)
+                                                   target_model,init_epsilon,final_epsilon,
+                                               num_features,learning_rate,
+                                               recurrent)
+        self.state_size = DRQN_Learner.set_state_size(n_inputs, trace_length,recurrent)
         self.continue_experiment(intervals)
         # self.model_objective = EWC_objective(lbda_task,learning_rate,batch_size,model,n_in, n_out,lbda,output_type=OutputType.linear,epochs=200,
         #          objective_type=ObjectiveType.EWC,task_weights=None)
@@ -55,9 +57,11 @@ class DRQN_Learner(CompleteLearner):
         print(self.agent.__dict__)
     @classmethod
     def init_agent(cls,n_inputs,actions,trace_length,episodic,task_features, use_task_bias, use_task_gain,
-                   num_neurons, target_model,init_epsilon=None,final_epsilon=None,num_features=0,learning_rate=0.10):
+                   num_neurons, target_model,init_epsilon=None,final_epsilon=None,num_features=0,
+                   learning_rate=0.10,
+                   recurrent=True):
         action_size = len(actions)
-        state_size = DRQN_Learner.set_state_size(n_inputs, trace_length)
+        state_size = DRQN_Learner.set_state_size(n_inputs, trace_length, recurrent)
         if num_features > 0:
             agent = FeatureDoubleDRQNAgent(num_features, state_size, action_size, trace_length,
                                     episodic=episodic, init_epsilon=init_epsilon,
@@ -69,7 +73,7 @@ class DRQN_Learner(CompleteLearner):
 
 
         #agent.epsilon=.05
-
+        agent.recurrent=recurrent
         input_shape = (None,) + state_size
         if isinstance(n_inputs,tuple): # use convolution
             if num_features > 0:
@@ -88,10 +92,15 @@ class DRQN_Learner(CompleteLearner):
         else:
             #input_shape, action_size, learning_rate, task_features, use_task_bias, use_task_gain
             agent.model = CustomNetworks.small_scale_drqn(input_shape, action_size, task_features,
-                                                          use_task_bias, use_task_gain,num_neurons,learning_rate=learning_rate)
+                                                          use_task_bias, use_task_gain,num_neurons,
+                                                          learning_rate=learning_rate,
+                                                          recurrent=recurrent)
             if target_model :
                 agent.target_model = CustomNetworks.small_scale_drqn(input_shape, action_size,
-                                                                     task_features, use_task_bias, use_task_gain,num_neurons,learning_rate=learning_rate)
+                                                                     task_features, use_task_bias,
+                                                                     use_task_gain,num_neurons,
+                                                                     learning_rate=learning_rate,
+                                                                     recurrent=recurrent)
         return agent
 
     def fill_eps(self,num_acts,maxindex,eps):
@@ -117,13 +126,16 @@ class DRQN_Learner(CompleteLearner):
         self.agent.epsilon=eps
         return probs
     @classmethod
-    def set_state_size(cls,n_inputs,trace_length):
-        if isinstance(n_inputs,tuple):
-            # is a shape
-            state_size=(trace_length,)+n_inputs
+    def set_state_size(cls,n_inputs,trace_length,recurrent):
+        if recurrent:
+            if isinstance(n_inputs,tuple):
+                # is a shape
+                state_size=(trace_length,)+n_inputs
 
+            else:
+                state_size=(trace_length,n_inputs,)
         else:
-            state_size=(trace_length,n_inputs,)
+            state_size=(n_inputs,)
         return state_size
     def init_variables(self,epsilon_change):
         self.epsilon_change=epsilon_change
@@ -228,7 +240,8 @@ class DRQN_Learner(CompleteLearner):
             if len(self.episode_buf) > self.agent.trace_length:
                buffer=self.episode_buf
                state_series = np.array([trace[-1] for trace in buffer[-self.agent.trace_length:]])
-               state_series = np.expand_dims(state_series, axis=0)
+               if self.agent.recurrent:
+                    state_series = np.expand_dims(state_series, axis=0)
                return state_series
             else:
                 return None

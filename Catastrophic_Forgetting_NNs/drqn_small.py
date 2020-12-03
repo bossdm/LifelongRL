@@ -304,7 +304,7 @@ class DoubleDRQNAgent:
         self.exploration_frame = 20*self.replay_start_size # 1M frames in atari
         self.trace_length = trace_length
         self.update_freq = 4 # Number of timesteps between training interval
-        self.update_target_freq = 10000 * self.update_freq  # total t will count steps not frames
+        self.update_target_freq = 10000
         self.total_t = 0
 
         # Create replay memory
@@ -422,15 +422,24 @@ class DoubleDRQNAgent:
         update_input = np.zeros(((batch_size,) + self.state_size))  # 32x8x64x64x3
         target_update_input = np.zeros(((batch_size,) + self.state_size))
 
-        action = np.zeros((batch_size, self.trace_length))  # 32x8
-        reward = np.zeros((batch_size, self.trace_length))
-
+        if self.recurrent:
+            action = np.zeros((batch_size, self.trace_length))  # 32x8
+            reward = np.zeros((batch_size, self.trace_length))
+        else:
+            action = np.zeros((batch_size,1))
+            reward = np.zeros((batch_size,1))
         for i in range(batch_size):
-            for j in range(self.trace_length):
-                update_input[i, j, :] = sample_traces[i][j][0]
-                action[i, j] = sample_traces[i][j][1]
-                reward[i, j] = sample_traces[i][j][2]
-                target_update_input[i, j, :] = sample_traces[i][j][3]
+            if self.recurrent:
+                for j in range(self.trace_length):
+                    update_input[i, j, :] = sample_traces[i][j][0]
+                    action[i, j] = sample_traces[i][j][1]
+                    reward[i, j] = sample_traces[i][j][2]
+                    target_update_input[i, j, :] = sample_traces[i][j][3]
+            else:
+                update_input[i, :] = sample_traces[i][0][0]
+                action[i] = [sample_traces[i][0][1]]
+                reward[i] = [sample_traces[i][0][2]]
+                target_update_input[i, :] = sample_traces[i][0][3]
 
         # Only use the last trace for training
         target=self.compute_target(update_input,target_update_input,batch_size,action,reward,terminals)

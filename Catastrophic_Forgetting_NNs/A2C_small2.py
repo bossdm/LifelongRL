@@ -226,7 +226,10 @@ class A2CAgent:
 
         # Episode length is like the minibatch size in DQN
         for i in range(episode_length):
-            state_inputs[i, :, :] = self.states[i]
+            if self.ppo.recurrent:
+                state_inputs[i, :, :] = self.states[i]
+            else:
+                state_inputs[i, :] = self.states[i]
 
 
         values=self.get_target_values(state_inputs)
@@ -251,17 +254,18 @@ class A2CAgent:
 
 
 class PPO_Agent(A2CAgent):
-    def __init__(self, state_size, action_size, trace_length, episodic,params, large_scale):
+    def __init__(self, state_size, action_size, trace_length, episodic,params, large_scale,recurrent):
         A2CAgent.__init__(self,state_size,action_size,trace_length,episodic)
         self.update_freq=1000
         self.lbda=.95
         self.epochs = 3
         self.learning_rate=params['learning_rate']
         self.large_scale=large_scale
-        self.init_PPO()
-    def init_PPO(self,filename=None,w=None):
+        self.init_PPO(recurrent=recurrent)
+    def init_PPO(self,filename=None,w=None,recurrent=True):
         self.ppo=Policy(self.state_size,self.action_size,neurons=80,learning_rate=self.learning_rate,
-                        clipping=0.10,epochs=self.epochs,c1=1.0,c2=self.beta,filename=filename,w=w,large_scale=self.large_scale)
+                        clipping=0.10,epochs=self.epochs,c1=1.0,c2=self.beta,filename=filename,
+                        w=w,large_scale=self.large_scale,recurrent=recurrent)
 
 
     def get_advantages(self,terminal,values,episode_length):

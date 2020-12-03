@@ -31,7 +31,7 @@ class A2C_Learner(CompleteLearner):
     exploration_schedule={}
     terminal_states_known=False
     def __init__(self,task_features,use_task_bias,use_task_gain,n_inputs,trace_length,actions,file,episodic,loss=None,
-                 target_model=False,num_neurons=80,
+                 target_model=False,num_neurons=80,recurrent=True,
                  agent=None,intervals=[]):
         CompleteLearner.__init__(self,actions,file,episodic)
 
@@ -39,8 +39,8 @@ class A2C_Learner(CompleteLearner):
         self.action_size=len(actions)
         if agent is None:
             self.agent=A2C_Learner.init_agent(n_inputs,actions,trace_length,episodic,
-                                           task_features, use_task_bias, use_task_gain, num_neurons)
-        self.state_size = A2C_Learner.set_state_size(n_inputs, trace_length)
+                                           task_features, use_task_bias, use_task_gain, num_neurons,recurrent)
+        self.state_size = A2C_Learner.set_state_size(n_inputs, trace_length,recurrent)
         self.continue_experiment(intervals)
 
         self.s_t=np.zeros(self.state_size)
@@ -58,11 +58,11 @@ class A2C_Learner(CompleteLearner):
 
     @classmethod
     def init_agent(cls,n_inputs,actions,trace_length,episodic,task_features, use_task_bias, use_task_gain,
-                   num_neurons):
+                   num_neurons,recurrent):
         action_size = len(actions)
-        state_size = A2C_Learner.set_state_size(n_inputs, trace_length)
+        state_size = A2C_Learner.set_state_size(n_inputs, trace_length,recurrent)
         agent = A2CAgent(state_size, action_size, trace_length,
-                                episodic=episodic)
+                                episodic=episodic,recurrent=recurrent)
 
         #agent.epsilon=.05
 
@@ -78,13 +78,16 @@ class A2C_Learner(CompleteLearner):
 
         return agent
     @classmethod
-    def set_state_size(cls,n_inputs,trace_length):
-        if isinstance(n_inputs,tuple):
-            # is a shape
-            state_size=(trace_length,)+n_inputs
+    def set_state_size(cls,n_inputs,trace_length, recurrent):
+        if recurrent:
+            if isinstance(n_inputs,tuple):
+                # is a shape
+                state_size=(trace_length,)+n_inputs
 
+            else:
+                state_size=(trace_length,n_inputs,)
         else:
-            state_size=(trace_length,n_inputs,)
+            state_size=(n_inputs,)
         return state_size
     def init_variables(self):
 
@@ -201,7 +204,9 @@ class A2C_Learner(CompleteLearner):
             self.action_idx =  random.randrange(self.action_size)
         else:
             # try:
-            self.action_idx = self.agent.get_action(np.expand_dims(self.s_t,0))[0]
+            if self.agent.ppo.recurrent:
+                self.s_t = np.expand_dims(self.s_t, 0)
+            self.action_idx = self.agent.get_action(self.s_t)[0]
             # except Exception as e:
             #     print(e)
             #     print("state = " + str(self.s_t))
@@ -271,7 +276,7 @@ class A2C_Learner(CompleteLearner):
 class PPO_Learner(A2C_Learner):
     def __init__(self, task_features, use_task_bias, use_task_gain, n_inputs, trace_length, actions, file, episodic,
                  loss=None,
-                 target_model=False, num_neurons=80,large_scale=False,terminal_known=False,
+                 target_model=False, num_neurons=80,large_scale=False,terminal_known=False,recurrent=True,
                  agent=None, intervals=[],params={}):
         self.terminal_states_known = terminal_known
         CompleteLearner.__init__(self, actions, file, episodic)
@@ -280,8 +285,9 @@ class PPO_Learner(A2C_Learner):
         self.action_size = len(actions)
         if agent is None:
             self.agent = PPO_Learner.init_agent(n_inputs, actions, trace_length, episodic,
-                                                task_features, use_task_bias, use_task_gain, num_neurons,params,large_scale)
-        self.state_size = PPO_Learner.set_state_size(n_inputs, trace_length)
+                                                task_features, use_task_bias, use_task_gain,
+                                                num_neurons,params,large_scale, recurrent)
+        self.state_size = PPO_Learner.set_state_size(n_inputs, trace_length,recurrent)
         self.continue_experiment(intervals)
 
         self.s_t = np.zeros(self.state_size)
@@ -297,11 +303,11 @@ class PPO_Learner(A2C_Learner):
 
     @classmethod
     def init_agent(cls,n_inputs,actions,trace_length,episodic,task_features, use_task_bias, use_task_gain,
-                   num_neurons,params,large_scale):
+                   num_neurons,params,large_scale,recurrent):
         action_size = len(actions)
-        state_size = A2C_Learner.set_state_size(n_inputs, trace_length)
+        state_size = A2C_Learner.set_state_size(n_inputs, trace_length,recurrent)
         agent = PPO_Agent(state_size, action_size, trace_length,
-                                episodic=episodic,params=params,large_scale=large_scale)
+                                episodic=episodic,params=params,large_scale=large_scale,recurrent=recurrent)
         return agent
 
     def add_sample(self):
@@ -316,7 +322,10 @@ class PPO_Learner(A2C_Learner):
     def set_atari_observation(self,obs):
         self.observation = obs  # in case of task drif
         obs = np.expand_dims(self.observation, axis=0)
-        self.s_t = np.append(self.s_t[1:, :], obs, axis=0)
+        if self.agent.ppo.recurrent:
+            self.s_t = np.append(self.s_t[1:, :], obs, axis=0)
+        else:
+            self.s_t = obs
 
         if len(self.agent.rewards) == self.agent.update_freq:
             if self.testing:

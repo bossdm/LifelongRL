@@ -35,7 +35,7 @@ def get_A2C_configs(inputs,externalActions, filename, episodic):
     return {'num_neurons': None, 'task_features': [], 'use_task_bias': False,
             'use_task_gain': False, 'n_inputs': inputs, 'trace_length': 3,
             'actions': deepcopy(externalActions), 'episodic': episodic,'file':filename, 'params':paramsdict,
-            "large_scale": True, "terminal_known": True
+            "large_scale": True, "terminal_known": False
             }
 
 
@@ -178,13 +178,13 @@ if __name__ == '__main__':
     parser.add_argument("-x", dest="experiment_type", type=str, default="single")  # lifelong, initial, interference or test
     args = parser.parse_args()
     print("will start run ",args.run)
-    # args.VISUAL=False
-    # args.method="DRQN"
-    # args.policies=1
-    # args.run=1
-    # args.experiment_type="single"
-    # args.filename="/home/david/LifelongRL"
-    # args.environment_file=False
+    args.VISUAL=False
+    args.method="PPO"
+    args.policies=1
+    args.run=1
+    args.experiment_type="single"
+    args.filename="/home/david/LifelongRL"
+    args.environment_file=False
     filename=args.filename + "/"+args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
     walltime = 60*3600 #60*3600  # 60 hours by default
     if args.walltime:

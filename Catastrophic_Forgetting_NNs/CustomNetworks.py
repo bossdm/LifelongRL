@@ -275,7 +275,8 @@ class CustomNetworks(object):
         return model
 
     @staticmethod
-    def small_scale_drqn(input_shape, action_size, task_features,use_task_bias,use_task_gain, num_neurons=80,learning_rate=.10):
+    def small_scale_drqn(input_shape, action_size, task_features,use_task_bias,use_task_gain, num_neurons=80,learning_rate=.10,
+                         recurrent=True):
 
         print("learning rate " +str(learning_rate))
         model = Sequential()
@@ -285,9 +286,11 @@ class CustomNetworks(object):
         # Use all traces for training
         #model.add(LSTM(512, return_sequences=True,  activation='tanh'))
         #model.add(TimeDistributed(Dense(output_dim=action_size, activation='linear')))
-
-        # Use last trace for training
-        model.add(LSTM(num_neurons,  activation='tanh'))
+        if recurrent:
+            # Use last trace for training
+            model.add(LSTM(num_neurons,  activation='tanh'))
+        else:
+            model.add(Dense(num_neurons, activation='relu'))
         # if task_features:
         #     model.add(TaskSpecificLayer(task_features,use_task_bias,use_task_gain,units=action_size))
         # else:

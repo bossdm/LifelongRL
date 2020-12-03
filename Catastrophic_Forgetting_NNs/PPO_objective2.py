@@ -21,7 +21,8 @@ DEBUG_MODE=True
 
 class Policy(object):
     """ NN-based policy approximation """
-    def __init__(self, obs_dim, act_dim,neurons,learning_rate,clipping,epochs,c1,c2,filename=None,w=None,large_scale=False):
+    def __init__(self, obs_dim, act_dim,neurons,learning_rate,clipping,epochs,c1,c2,filename=None,w=None,large_scale=False,
+                 recurrent=True):
         """
         Args:
             obs_dim: num observation dimensions (int)
@@ -38,6 +39,7 @@ class Policy(object):
         self.act_dim = act_dim
         self.clipping = clipping
         self.large_scale=large_scale
+        self.recurrent=recurrent
         if filename is None:
             self._build_graph(neurons,w)
             self._init_session()
@@ -159,15 +161,20 @@ class Policy(object):
         # model.add(TimeDistributed(Dense(output_dim=action_size, activation='linear')))
 
         # Use last trace for training
-        if w is None:
-            hidden2=tf.keras.layers.LSTM(units=num_neurons, name=label+"2",activation=tf.tanh)(hidden1)
+        if self.recurrent:
+            if w is None:
+                hidden2=tf.keras.layers.LSTM(units=num_neurons, name=label+"2",activation=tf.tanh)(hidden1)
+            else:
+                initw2 = tf.constant_initializer(w[2])
+                initr2 = tf.constant_initializer(w[3])
+                #initb2 = tf.constant_initializer(w[4])
+                #print("bias LSTM =", w[4])
+                hidden2 = tf.keras.layers.LSTM(units=num_neurons, name=label + "2", activation=tf.tanh,
+                                          kernel_initializer=initw2,recurrent_initializer=initr2)(hidden1)
         else:
-            initw2 = tf.constant_initializer(w[2])
-            initr2 = tf.constant_initializer(w[3])
-            #initb2 = tf.constant_initializer(w[4])
-            #print("bias LSTM =", w[4])
-            hidden2 = tf.keras.layers.LSTM(units=num_neurons, name=label + "2", activation=tf.tanh,
-                                      kernel_initializer=initw2,recurrent_initializer=initr2)(hidden1)
+            if w is None:
+                hidden2=tf.keras.layers.Dense(units=num_neurons, name=label+"2",activation=tf.nn.relu)(hidden1)
+            # we assume that constant intializers will not be used
         # if task_features:
         #     model.add(TaskSpecificLayer(task_features,use_task_bias,use_task_gain,units=action_size))
         # else:
