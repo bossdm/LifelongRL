@@ -44,12 +44,13 @@ class LifelongMountaincarAgent(object):
     """The world's simplest agent!"""
     def __init__(self, args,filename,n_tasks):
         self.learner = select_learner(args,2,range(3),filename,n_tasks)
-    def act(self,obs, reward, done, total_t):
-
-        self.learner.setReward(reward)
+    def act(self,obs, done, total_t):
         self.learner.setTime(total_t)
-        self.learner.atari_cycle(obs, reward)
+        self.learner.atari_cycle(obs)
         return self.learner.chosenAction
+
+    def reward(self,r):
+        self.learner.setReward(r)
     def set_term(self,obs):
         self.learner.setAtariTerminalObservation(obs)
 
@@ -82,8 +83,9 @@ def perform_episode(visual,env, agent, seed,total_t):
     t=0
     agent.new_episode()
     while True:
-        action = agent.act(ob, reward, done, total_t)
-        ob, reward, done, _ = env.step(action)
+        action = agent.act(ob, done, total_t)
+        ob, r, done, _ = env.step(action)
+        agent.reward(r)
         if done or t==200:  # should terminate at t==200 if goal never reached
             agent.set_term(ob)
             break

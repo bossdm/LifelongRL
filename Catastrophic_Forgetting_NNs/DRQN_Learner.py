@@ -354,9 +354,8 @@ class DRQN_Learner(CompleteLearner):
         self.chosenAction.perform([agent,environment])
         #self.t = environment.t
     @overrides
-    def atari_cycle(self,observation, reward):
+    def atari_cycle(self,observation):
         self.observation = observation  # in case of task drif
-        self.r = reward
         self.s_t1 = np.array(self.observation)
         self.learn()
         self.setAction()

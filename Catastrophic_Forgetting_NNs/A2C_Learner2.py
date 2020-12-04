@@ -204,9 +204,9 @@ class A2C_Learner(CompleteLearner):
             self.action_idx =  random.randrange(self.action_size)
         else:
             # try:
-            if self.agent.ppo.recurrent:
-                self.s_t = np.expand_dims(self.s_t, 0)
-            self.action_idx = self.agent.get_action(self.s_t)[0]
+
+            s_t = np.expand_dims(self.s_t, 0) if self.agent.ppo.recurrent else self.s_t
+            self.action_idx = self.agent.get_action(s_t)[0]
             # except Exception as e:
             #     print(e)
             #     print("state = " + str(self.s_t))
@@ -312,16 +312,19 @@ class PPO_Learner(A2C_Learner):
 
     def add_sample(self):
         if self.t >= self.agent.trace_length:
+            #print("add sample")
             self.agent.append_sample(self.s_t, self.action_idx, self.r)
     @overrides
-    def atari_cycle(self, observation, reward):
-        self.r = reward
+    def atari_cycle(self, observation):
+
         self.set_atari_observation(observation)
         self.setAction()
         # ??? agent.learner.chosenAction = self.chosenAction  # cf. task drift (Homeostatic Pols)
     def set_atari_observation(self,obs):
         self.observation = obs  # in case of task drif
         obs = np.expand_dims(self.observation, axis=0)
+        #print(obs.shape)
+        #print(self.s_t.shape)
         if self.agent.ppo.recurrent:
             self.s_t = np.append(self.s_t[1:, :], obs, axis=0)
         else:
@@ -336,6 +339,7 @@ class PPO_Learner(A2C_Learner):
                 print("loss=" + str(loss))
     @overrides
     def setAtariTerminalObservation(self,obs):
+        #print("terminal")
         self.observation = obs  # in case of task drif
         obs = np.expand_dims(self.observation, axis=0)
         self.s_t = np.append(self.s_t[1:, :], obs, axis=0)

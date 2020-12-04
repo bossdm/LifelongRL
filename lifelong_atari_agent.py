@@ -43,13 +43,14 @@ class LifelongAtariAgent(object):
     """The world's simplest agent!"""
     def __init__(self, args,filename,inputs, externalActions,n_tasks):
         self.learner = select_learner(args,inputs,externalActions,filename,n_tasks)
-    def act(self,obs, reward, done, total_t):
+    def act(self,obs, done, total_t):
 
-        self.learner.setReward(reward)
         self.learner.setTime(total_t)
         obs= obs/255.
-        self.learner.atari_cycle(obs, reward)
+        self.learner.atari_cycle(obs)
         return self.learner.chosenAction
+    def reward(self,r):
+        self.learner.setReward(r)
     def set_term(self,obs):
         self.learner.setAtariTerminalObservation(obs)
 
@@ -106,8 +107,9 @@ def perform_episode(visual,env, agent, seed,total_t):
     t=0
     agent.new_episode()
     while True:
-        action = agent.act(ob, reward, done, total_t)
-        ob, reward, done, _ = env.step(action)
+        action = agent.act(ob, done, total_t)
+        ob, r, done, _ = env.step(action)
+        agent.reward(r)
         if done:
             agent.set_term(ob)
             break
@@ -179,7 +181,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print("will start run ",args.run)
     args.VISUAL=False
-    args.method="PPO"
+    args.method="DRQN"
     args.policies=1
     args.run=1
     args.experiment_type="single"
