@@ -25,7 +25,7 @@ def get_DRQN_agent_configs(inputs,externalActions,filename,episodic):
     return  {'num_neurons':None,'task_features': [], 'use_task_bias': False,
                    'use_task_gain': False, 'n_inputs': inputs, 'trace_length': 3,
                    'actions': deepcopy(externalActions),'episodic': episodic,
-                'target_model':True,'init_epsilon':1.0,'final_epsilon':.10,'epsilon_change':True,"learning_rate":lr}
+                'target_model':True,'init_epsilon':0.10,'final_epsilon':.10,'epsilon_change':True,"learning_rate":lr}
 def get_A2C_configs(inputs,externalActions, filename, episodic):
     paramsdict={}
     if os.environ["tuning_lr"]:
