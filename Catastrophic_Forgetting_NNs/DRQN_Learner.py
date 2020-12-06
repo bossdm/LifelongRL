@@ -269,7 +269,7 @@ class DRQN_Learner(CompleteLearner):
 
         self.chosenAction=self.actions[self.action_idx]
 
-
+        #print(self.chosenAction)
         self.s_t = self.s_t1
         self.old_input = self.new_input
 

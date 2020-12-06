@@ -180,10 +180,10 @@ if __name__ == '__main__':
     parser.add_argument("-x", dest="experiment_type", type=str, default="single")  # lifelong, initial, interference or test
     args = parser.parse_args()
     print("will start run ",args.run)
-    # args.VISUAL=False
+    # args.VISUAL=True
     # args.method="DRQN"
     # args.policies=1
-    # args.run=1
+    # args.run=2
     # args.experiment_type="single"
     # args.filename="/home/david/LifelongRL"
     # args.environment_file=False
