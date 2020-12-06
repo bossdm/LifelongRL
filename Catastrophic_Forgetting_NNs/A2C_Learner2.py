@@ -346,7 +346,6 @@ class PPO_Learner(A2C_Learner):
         self.agent.states.append(self.s_t)  # add final state
 
 
-
 if __name__ == "__main__":
     # Avoid Tensorflow eats up GPU memory
     config = tf.ConfigProto()

@@ -10,10 +10,7 @@ from ExperimentUtils import dump_incremental, read_incremental
 
 import time
 
-FRAMES_PER_TASK=50*10**6 # for tuning
-#FRAMES_PER_TASK=50*10**6  # for full experiment
-#FRAMES_PER_EPISODE=18000 # according to Arcade learning environment paper
-
+FRAMES_PER_TASK=5*10**6
 def get_DRQN_configs(inputs,externalActions,filename,episodic):
     d=get_DRQN_agent_configs(inputs, externalActions, filename, episodic)
     d.update({'file': filename, 'loss': None})
@@ -58,7 +55,7 @@ class LifelongCartpoleAgent(object):
         self.learner.new_elementary_task()
     def end_episode(self):
         self.learner.reset()
-def get_games():
+def get_games(args):
         environments=[]
         game = ["CartPole-v1"]
 
@@ -88,7 +85,7 @@ def make_custom_environment(masscart,masspole,length):
     return e
 
 def perform_episode(visual,env, agent, seed,total_t):
-    print("starting environment")
+    print("starting environment", env, "with mc=",env.masscart," mp=", env.masspole, "e.length=",env.length)
     env.seed(seed)
     print("seed ",seed)
     reward = 0
@@ -171,13 +168,13 @@ if __name__ == '__main__':
     parser.add_argument("-x", dest="experiment_type", type=str, default="single")  # lifelong, initial, interference or test
     args = parser.parse_args()
     print("will start run ",args.run)
-    args.VISUAL=True
-    args.method="PPO"
-    args.policies=1
-    args.run=1
-    args.experiment_type="single"
-    args.filename="/home/david/LifelongRL"
-    args.environment_file=False
+    # args.VISUAL=True
+    # args.method="PPO"
+    # args.policies=1
+    # args.run=0
+    # args.experiment_type="single"
+    # args.filename="/home/david/LifelongRL"
+    # args.environment_file=False
     filename=args.filename + "/"+args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
     walltime = 60*3600 #60*3600  # 60 hours by default
     if args.walltime:
