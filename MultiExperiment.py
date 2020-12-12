@@ -50,7 +50,8 @@ REAL_STOPTIMES = 60*60*100 # 100 hours
 
 TOTAL_TASK_TIME = 20*10**6
 BLOCK_LENGTH = 200000 # 200 repetitions of the same task (1000 per elementary task)
-
+# 90 M/200,000 = 450 task blocks ; 25 blocks per task
+# total of 5000 episodes per task, to be divided among at most 18 policies
 
 meltingpot_rewards=[-1.,1.]
 

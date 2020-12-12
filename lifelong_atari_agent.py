@@ -177,7 +177,7 @@ def select_learner(args,inputs,externalActions,filename,n_tasks,episodic=True):
 if __name__ == '__main__':
     from Parsers.Parse_Arguments import *
     parser.add_argument("-P", dest="policies", type=int,default=1)
-    parser.add_argument("-x", dest="experiment_type", type=str, default="single")  # lifelong, initial, interference or test
+    parser.add_argument("-x", dest="experiment_type", type=str, default="single")  # single, lifelong_converge, lifelong
     args = parser.parse_args()
     print("will start run ",args.run)
     # args.VISUAL=True
