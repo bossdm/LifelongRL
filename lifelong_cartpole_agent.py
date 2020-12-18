@@ -11,8 +11,8 @@ from ExperimentUtils import dump_incremental, read_incremental
 import time
 
 
-TASK_BLOCK_SIZE = 300 # 300 episodes per task block
-EPISODES_PER_TASK=7500 # total of 7500 episodes per task, to be divided among at most 14 policies
+TASK_BLOCK_SIZE = 30000 # 300 episodes per task block
+FRAMES_PER_TASK=750000 # total of 7500 episodes per task, to be divided among at most 14 policies
 # compare 5000 episodes for MultiExperiment with at most 9 policies
 # ---> 25 blocks per task, and total 675 blocks (compare 450 in MultiExperiment)
 NUM_BLOCKS=675
@@ -82,7 +82,8 @@ def get_games(args):
             np.random.seed(args.run)
             indices=list(range(27))
             np.random.shuffle(indices)
-            return environments, indices
+            taskblockend=FRAMES_PER_TASK
+            return environments, indices, taskblockend
         elif args.experiment_type == "lifelong":
             np.random.seed(0)  # only first sequence is random
             environment_index = [None for i in range(NUM_BLOCKS)]
@@ -92,10 +93,12 @@ def get_games(args):
 
             # now set the correct random state
             np.random.seed(args.run)  # only first sequence is random
-            return environments, environment_index
+            taskblockend=TASK_BLOCK_SIZE
+            return environments, environment_index, taskblockend
         else:
             environments = [environments[args.run]]
-            return environments, [0]
+            taskblockend = FRAMES_PER_TASK
+            return environments, [0], taskblockend
 
 def make_custom_environment(masscart,masspole,length):
     e = CartPoleEnv()
@@ -214,7 +217,7 @@ if __name__ == '__main__':
     # will be namespaced). You can also dump to a tempdir if you'd
     # like: tempfile.mkdtemp().
 
-    envs, indices = get_games(args)
+    envs, indices, taskblockend = get_games(args)
     if args.environment_file:
         # just to get stopping time
         interrupted=True
@@ -230,6 +233,7 @@ if __name__ == '__main__':
         agent.index = 0
     starttime = time.time()
 
+
     #print(agent.learner.__dict__)
 
     for i in range(agent.index,len(indices)):
@@ -239,12 +243,11 @@ if __name__ == '__main__':
         print("starting cartpole environment")
         print("block i =", i, "environment ", j , "\t settings: ", env.settings)
         if not interrupted:
-            agent.num_episodes=0
             agent.taskblock_t=0
             agent.learner.new_task([i])
         # for item in env.__dict__.items():
         #     print(item)
-        while agent.num_episodes<TASK_BLOCK_SIZE:
+        while agent.taskblock_t< taskblockend:
             print("starting new episode at taskblock_episode: ", agent.num_episodes)
             consumed_steps=perform_episode(args.VISUAL, env, agent, args.run*100000+agent.num_episodes, agent.total_t)
             agent.taskblock_t+=consumed_steps
