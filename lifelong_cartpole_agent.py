@@ -11,12 +11,12 @@ from ExperimentUtils import dump_incremental, read_incremental
 import time
 
 
-TASK_BLOCK_SIZE = 30000 # 30000 times steps equals 300 pretty successful episodes per task block
-FRAMES_PER_TASK=7.5*10**5 # total of 7500 episodes per task, to be divided among at most 14 policies
+TASK_BLOCK_SIZE = 300 # 300 episodes per task block
+EPISODES_PER_TASK=7500 # total of 7500 episodes per task, to be divided among at most 14 policies
 # compare 5000 episodes for MultiExperiment with at most 9 policies
 # ---> 25 blocks per task, and total 675 blocks (compare 450 in MultiExperiment)
 NUM_BLOCKS=675
-assert 27*FRAMES_PER_TASK/30000==675
+
 
 
 def get_DRQN_configs(inputs,externalActions,filename,episodic):
@@ -235,15 +235,17 @@ if __name__ == '__main__':
     for i in range(agent.index,len(indices)):
         j=indices[i]
         env=envs[j]
+        agent.index=i
         print("starting cartpole environment")
         print("block i =", i, "environment ", j , "\t settings: ", env.settings)
         if not interrupted:
+            agent.num_episodes=0
             agent.taskblock_t=0
             agent.learner.new_task([i])
         # for item in env.__dict__.items():
         #     print(item)
-        while agent.taskblock_t<FRAMES_PER_TASK:
-            print("starting new episode at taskblock_t: ", agent.taskblock_t)
+        while agent.num_episodes<TASK_BLOCK_SIZE:
+            print("starting new episode at taskblock_episode: ", agent.num_episodes)
             consumed_steps=perform_episode(args.VISUAL, env, agent, args.run*100000+agent.num_episodes, agent.total_t)
             agent.taskblock_t+=consumed_steps
             agent.total_t+=consumed_steps # need to add because primitive data types not passed by reference

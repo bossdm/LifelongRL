@@ -225,6 +225,7 @@ if __name__ == '__main__':
 
     for i in range(agent.index,len(envs)):
         env=envs[i]
+        agent.index = i
         print("starting ",env.game)
         if not interrupted:
             agent.taskblock_t=0
