@@ -41,7 +41,7 @@ def get_A2C_configs(inputs,externalActions, filename, episodic):
     return {'num_neurons': 80, 'task_features': [], 'use_task_bias': False,
             'use_task_gain': False, 'n_inputs': inputs, 'trace_length': 1, 'recurrent': False,
             'actions': deepcopy(externalActions), 'episodic': episodic,'file':filename, 'params':paramsdict,
-            "large_scale": False, "terminal_known": False
+            "large_scale": False, "terminal_known": True
             }
 
 

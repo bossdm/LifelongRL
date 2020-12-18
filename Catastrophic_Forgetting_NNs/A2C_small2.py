@@ -256,9 +256,9 @@ class A2CAgent:
 class PPO_Agent(A2CAgent):
     def __init__(self, state_size, action_size, trace_length, episodic,params, large_scale,recurrent):
         A2CAgent.__init__(self,state_size,action_size,trace_length,episodic)
-        self.update_freq=100
+        self.update_freq=None #do on episodic basis   #100
         self.lbda=.95
-        self.epochs = 3
+        self.epochs = 10  # 3
         self.learning_rate=params['learning_rate']
         self.large_scale=large_scale
         self.init_PPO(recurrent=recurrent)
@@ -329,7 +329,7 @@ class PPO_Agent(A2CAgent):
                     print("epoch %d, batch index %d" % (e,i))
                     print(loss)
                 i += self.batch_size
-
+        return loss
     def discount(self,x, gamma):
         """ Calculate discounted forward sum of a sequence at each point """
         return scipy.signal.lfilter([1.0], [1.0, -gamma], x[::-1])[::-1]

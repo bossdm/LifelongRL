@@ -330,13 +330,14 @@ class PPO_Learner(A2C_Learner):
         else:
             self.s_t = obs
 
-        if len(self.agent.rewards) == self.agent.update_freq:
-            if self.testing:
-                return
-            self.agent.states.append(self.s_t)  # add final state
-            loss = self.agent.train_model(terminal=False)
-            if DEBUG_MODE:
-                print("loss=" + str(loss))
+        if self.agent.update is not None:
+            if len(self.agent.rewards) == self.agent.update_freq:
+                if self.testing:
+                    return
+                self.agent.states.append(self.s_t)  # add final state
+                loss = self.agent.train_model(terminal=False)
+                if DEBUG_MODE:
+                    print("loss=" + str(loss))
     @overrides
     def setAtariTerminalObservation(self,obs):
         #print("terminal")
