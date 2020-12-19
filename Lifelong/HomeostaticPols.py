@@ -9,7 +9,7 @@ from overrides import overrides
 
 from copy import deepcopy
 from StatsAndVisualisation.metrics import getDifferential
-DEBUG_MODE=True
+DEBUG_MODE=False
 
 #from MultiBlockStackBase import MultiBlockStackBase
 
