@@ -9,7 +9,7 @@ from overrides import overrides
 
 from copy import deepcopy
 from StatsAndVisualisation.metrics import getDifferential
-DEBUG_MODE=False
+DEBUG_MODE=True
 
 #from MultiBlockStackBase import MultiBlockStackBase
 
@@ -592,8 +592,8 @@ class HomeostaticPol(CompleteLearner):
 
                     self.taskpolmap = {}
                     num_repetitions=int(np.ceil(len(weights)/float(self.num_policies)))
-                    policy_order=range(self.num_policies)*num_repetitions
-                    tasks=weights.keys()
+                    policy_order=list(range(self.num_policies))*num_repetitions
+                    tasks=list(weights.keys())
                     np.random.shuffle(tasks)
                     for task in tasks:
                         self.taskpolmap[task] = policy_order.pop(0)
@@ -1188,7 +1188,7 @@ class HomeostaticPol(CompleteLearner):
         assert np.array_equal(self.observation,self.pols[self.current_pol].observation), "observation mismatch"
         assert np.array_equal(self.chosenAction,self.pols[self.current_pol].chosenAction), "action mismatch"
     @overrides
-    def atari_cycle(self,observation, reward):
+    def atari_cycle(self,observation):
 
         time=self.pols[self.current_pol].t
         if not self.episodic and not self.policy_chosen and time % self.decision_frequency == 0 :
@@ -1196,10 +1196,12 @@ class HomeostaticPol(CompleteLearner):
             self.choose_policy()
         if DEBUG_MODE:
             print("cycle outer:"+str(self))
-            print("pol t = %d" % (self.t))
+            print("total t = %d" % (self.t))
+            print("policy t = %d" % (time))
+            print("policy total_t = %d" % (self.pols[self.current_pol].total_t))
             print("current pol=%d"%(self.current_pol))
 
-        self.pols[self.current_pol].atari_cycle(observation, reward)
+        self.pols[self.current_pol].atari_cycle(observation)
         self.observation = self.pols[self.current_pol].observation
         self.chosenAction = self.pols[self.current_pol].chosenAction
         assert np.array_equal(self.observation,self.pols[self.current_pol].observation), "observation mismatch"
