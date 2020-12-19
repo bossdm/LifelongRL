@@ -225,13 +225,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print("will start run ",args.run)
     # args.VISUAL=True
-    args.method="Unadaptive_PPO"
-    args.policies=4
-    args.run=4
-    args.experiment_type="lifelong_convergence"
-    args.filename="/home/david/LifelongRL"
-    args.environment_file=False
-    filename=args.filename +args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
+    # args.method="Unadaptive_PPO"
+    # args.policies=4
+    # args.run=4
+    # args.experiment_type="lifelong_convergence"
+    # args.filename="/home/david/LifelongRL"
+    # args.environment_file=False
+    # filename=args.filename +args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
     walltime = 60*3600 #60*3600  # 60 hours by default
     if args.walltime:
         ftr = [3600, 60, 1]
