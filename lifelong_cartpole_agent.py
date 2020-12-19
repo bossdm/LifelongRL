@@ -223,7 +223,7 @@ if __name__ == '__main__':
     parser.add_argument("-P", dest="policies", type=int,default=1)
     parser.add_argument("-x", dest="experiment_type", type=str, default="single")  # single, lifelong_convergence , lifelong
     args = parser.parse_args()
-    print("will start run ",args.run)
+    print("will start run ",args.run, " with experiment_type ",args.experiment_type, "and ",args.policies, " policies of ", args.method)
     # args.VISUAL=True
     # args.method="Unadaptive_PPO"
     # args.policies=4
@@ -231,7 +231,7 @@ if __name__ == '__main__':
     # args.experiment_type="lifelong_convergence"
     # args.filename="/home/david/LifelongRL"
     # args.environment_file=False
-    # filename=args.filename +args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
+    filename=args.filename +args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
     walltime = 60*3600 #60*3600  # 60 hours by default
     if args.walltime:
         ftr = [3600, 60, 1]
