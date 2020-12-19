@@ -11,8 +11,8 @@ from ExperimentUtils import dump_incremental, read_incremental
 import time
 
 
-TASK_BLOCK_SIZE = 30000 # 300 episodes per task block
-FRAMES_PER_TASK=750000 # total of 7500 episodes per task, to be divided among at most 14 policies
+TASK_BLOCK_SIZE =60000 # 300 episodes per task block
+FRAMES_PER_TASK=1500000 # total of at least 7500 episodes per task, to be divided among at most 14 policies
 # compare 5000 episodes for MultiExperiment with at most 9 policies
 # ---> 25 blocks per task, and total 675 blocks (compare 450 in MultiExperiment)
 NUM_BLOCKS=675
@@ -122,7 +122,7 @@ def perform_episode(visual,env, agent, seed,total_t):
         action = agent.act(ob, done, total_t)
         ob, r, done, _ = env.step(action)
         agent.reward(r)
-        if done:  # should terminate at t==200 if goal never reached
+        if done or t==200:  # should terminate at t==200 as this defines success
             agent.set_term(ob)
             break
         if visual:
@@ -199,7 +199,7 @@ if __name__ == '__main__':
     args.experiment_type="lifelong_convergence"
     args.filename="/home/david/LifelongRL"
     args.environment_file=False
-    filename=args.filename + "/"+args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
+    filename=args.filename +args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
     walltime = 60*3600 #60*3600  # 60 hours by default
     if args.walltime:
         ftr = [3600, 60, 1]
@@ -248,7 +248,7 @@ if __name__ == '__main__':
         # for item in env.__dict__.items():
         #     print(item)
         while agent.taskblock_t< taskblockend:
-            print("starting new episode at taskblock_episode: ", agent.num_episodes)
+            print("starting new episode at taskblock_t: ", agent.taskblock_t)
             consumed_steps=perform_episode(args.VISUAL, env, agent, args.run*100000+agent.num_episodes, agent.total_t)
             agent.taskblock_t+=consumed_steps
             agent.total_t+=consumed_steps # need to add because primitive data types not passed by reference

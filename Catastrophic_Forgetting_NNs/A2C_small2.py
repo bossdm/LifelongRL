@@ -97,7 +97,7 @@ class A2CAgent:
         self.learning_rate = 0.00025
         self.update_freq = 100
         self.batch_size=34
-        self.beta = 0.01 # entropy regularisation
+        self.beta = 0.05 # 0.01 # entropy regularisation
         self.epochs=1
         #self.normalise=ZFilter(shape=(1,),demean=True,destd=True,clip=False)
 
