@@ -65,10 +65,10 @@ class LifelongCartpoleAgent(object):
         self.learner.reset()
 def indices_convergence(run):
     np.random.seed(0)  # only first sequence is random
-    environment_index = [None for i in range(27)]
+    environment_index = np.random.choice(27, size=27, replace=False)
     for j in range(27):
-        environment_index[j] = np.random.randint(0, 28)  # generate random index
         environment_index[j] = (environment_index[j] + run) % 27  # increment tindex according to run
+    assert len(np.unique(environment_index)) == 27 and len(environment_index) == 27
     return environment_index
 def indices_lifelong(run):
     np.random.seed(0)  # only first sequence is random
@@ -95,14 +95,16 @@ def get_games(args):
                     print("act", environments[-1].action_space)
         if args.experiment_type == "lifelong_convergence":
             indices=indices_convergence(args.run)
+            # now set the correct random state
+            np.random.seed(args.run)  # only first sequence is random
             taskblockend=FRAMES_PER_TASK
             return environments, indices, taskblockend
         elif args.experiment_type == "lifelong":
-            indices_lifelong(args.run)
+            indices = indices_lifelong(args.run)
             # now set the correct random state
             np.random.seed(args.run)  # only first sequence is random
             taskblockend=TASK_BLOCK_SIZE
-            return environments, environment_index, taskblockend
+            return environments, indices, taskblockend
         else:
             environments = [environments[args.run]]
             taskblockend = FRAMES_PER_TASK
@@ -269,7 +271,7 @@ if __name__ == '__main__':
     # args.VISUAL=True
     # args.method="1to1_DRQN"
     # args.policies=27
-    # args.run=4
+    # args.run=5
     # args.experiment_type="lifelong_convergence"
     # args.filename="/home/david/LifelongRL"
     # args.environment_file=False
