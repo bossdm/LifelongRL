@@ -63,6 +63,21 @@ class LifelongCartpoleAgent(object):
         self.learner.new_elementary_task()
     def end_episode(self):
         self.learner.reset()
+def indices_convergence(run):
+    np.random.seed(0)  # only first sequence is random
+    environment_index = [None for i in range(27)]
+    for j in range(27):
+        environment_index[j] = np.random.randint(0, 28)  # generate random index
+        environment_index[j] = (environment_index[j] + run) % 27  # increment tindex according to run
+    return environment_index
+def indices_lifelong(run):
+    np.random.seed(0)  # only first sequence is random
+    environment_index = [None for i in range(NUM_BLOCKS)]
+    for j in range(NUM_BLOCKS):
+        environment_index[j] = np.random.randint(0, 28)  # generate random index
+        environment_index[j] = (environment_index[j] + run) % 27  # increment tindex according to run
+    return environment_index
+
 def get_games(args):
         environments=[]
         game = ["CartPole-v1"]
@@ -79,18 +94,11 @@ def get_games(args):
                     print("obs ", environments[-1].observation_space)
                     print("act", environments[-1].action_space)
         if args.experiment_type == "lifelong_convergence":
-            np.random.seed(args.run)
-            indices=list(range(27))
-            np.random.shuffle(indices)
+            indices=indices_convergence(args.run)
             taskblockend=FRAMES_PER_TASK
             return environments, indices, taskblockend
         elif args.experiment_type == "lifelong":
-            np.random.seed(0)  # only first sequence is random
-            environment_index = [None for i in range(NUM_BLOCKS)]
-            for j in range(NUM_BLOCKS):
-                environment_index[j] = np.random.randint(0,28)  #generate random index
-                environment_index[j] = (environment_index[j] + args.run) % 27 # increment tindex according to run
-
+            indices_lifelong(args.run)
             # now set the correct random state
             np.random.seed(args.run)  # only first sequence is random
             taskblockend=TASK_BLOCK_SIZE
