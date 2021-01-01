@@ -74,7 +74,7 @@ def indices_lifelong(run):
     np.random.seed(0)  # only first sequence is random
     environment_index = [None for i in range(NUM_BLOCKS)]
     for j in range(NUM_BLOCKS):
-        environment_index[j] = np.random.randint(0, 28)  # generate random index
+        environment_index[j] = np.random.randint(0, 27)  # generate random index
         environment_index[j] = (environment_index[j] + run) % 27  # increment tindex according to run
     return environment_index
 
