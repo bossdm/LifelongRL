@@ -121,7 +121,7 @@ def make_custom_environment(masscart,masspole,length):
 def perform_episode(visual,env, agent, seed,total_t):
     #print("starting environment", env, "with mc=",env.masscart," mp=", env.masspole, "e.length=",env.length)
     env.seed(seed)
-    print("seed ",seed)
+    #print("seed ",seed)
     reward = 0
     done = False
     consumed_frames=0
@@ -324,7 +324,7 @@ if __name__ == '__main__':
         # for item in env.__dict__.items():
         #     print(item)
         while agent.taskblock_t< taskblockend:
-            print("starting new episode at taskblock_t: ", agent.taskblock_t)
+            #print("starting new episode at taskblock_t: ", agent.taskblock_t)
             consumed_steps=perform_episode(args.VISUAL, env, agent, args.run*100000+agent.num_episodes, agent.total_t)
             agent.taskblock_t+=consumed_steps
             agent.total_t+=consumed_steps # need to add because primitive data types not passed by reference

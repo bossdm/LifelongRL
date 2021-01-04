@@ -118,7 +118,7 @@ class A2C_Learner(CompleteLearner):
                 print("loss="+str(loss))
     @overrides
     def new_elementary_task(self):
-        print("new elementary task")
+        #print("new elementary task")
         if self.episodic :
             print("episodic")
             self.agent.reset_states()
