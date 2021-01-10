@@ -17,7 +17,7 @@ if PARALLEL:
 
 
 
-DEBUG_MODE=True
+DEBUG_MODE=False
 
 class Policy(object):
     """ NN-based policy approximation """

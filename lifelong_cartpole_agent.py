@@ -31,7 +31,7 @@ def get_DRQN_agent_configs(inputs,externalActions,filename,episodic):
     return  {'num_neurons':80,'task_features': [], 'use_task_bias': False,
                    'use_task_gain': False, 'n_inputs': inputs, 'trace_length': 1,
                    'actions': deepcopy(externalActions),'episodic': episodic,'recurrent': False,
-                'target_model':True,'init_epsilon':0.1,'final_epsilon':.10,'epsilon_change':True,"learning_rate":lr}
+                'target_model':True,'init_epsilon':0.1,'final_epsilon':.10,'epsilon_change':False,"learning_rate":lr}
 def get_A2C_configs(inputs,externalActions, filename, episodic):
     paramsdict={}
     if os.environ["tuning_lr"]:
@@ -268,13 +268,13 @@ if __name__ == '__main__':
     parser.add_argument("-x", dest="experiment_type", type=str, default="single")  # single, lifelong_convergence , lifelong
     args = parser.parse_args()
     print("will start run ",args.run, " with experiment_type ",args.experiment_type, "and ",args.policies, " policies of ", args.method)
-    # args.VISUAL=True
-    # args.method="1to1_DRQN"
-    # args.policies=27
-    # args.run=5
-    # args.experiment_type="lifelong"
-    # args.filename="/home/david/LifelongRL"
-    # args.environment_file=False
+    args.VISUAL=False
+    args.method="1to1_DRQN"
+    args.policies=27
+    args.run=5
+    args.experiment_type="lifelong"
+    args.filename="/home/david/LifelongRL"
+    args.environment_file=False
     filename=args.filename +args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
     walltime = 60*3600 #60*3600  # 60 hours by default
     if args.walltime:

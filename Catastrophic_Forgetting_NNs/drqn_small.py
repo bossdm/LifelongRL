@@ -299,8 +299,8 @@ class DoubleDRQNAgent:
         self.final_epsilon = 0.10 if final_epsilon is None else final_epsilon
         self.batch_size = 10 if batch_size is None else batch_size
         self.observe = 0
-        self.frame_per_action = 4
-        self.replay_start_size = 50000./self.frame_per_action   # 50000 frames in atari
+        self.frame_per_action = 1
+        self.replay_start_size = 50000   # 50000 frames in atari
         self.exploration_frame = 20*self.replay_start_size # 1M frames in atari
         self.trace_length = trace_length
         self.update_freq = 4 # Number of timesteps between training interval

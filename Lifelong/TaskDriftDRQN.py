@@ -73,6 +73,7 @@ class TaskDriftDRQN(DRQN_Learner,TaskDriftBase):
 
         self.total_t+=increment
         self.t += increment
+        self.agent.total_t = self.total_t
 
     @overrides
     def update_task_reward(self,reward):
