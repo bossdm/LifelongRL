@@ -131,6 +131,7 @@ def perform_episode(visual,env, agent, seed,total_t):
     while True:
         action = agent.act(ob, done, total_t)
         ob, r, done, _ = env.step(action)
+        #print(ob)
         agent.reward(r)
         if done or t==200:  # should terminate at t==200 as this defines success
             agent.set_term(ob)
@@ -148,7 +149,6 @@ def perform_episode(visual,env, agent, seed,total_t):
     # Close the env and write monitor result info to disk
     env.close()
     return consumed_frames
-
 
 def select_learner(args,inputs,externalActions,filename,n_tasks,episodic=True):
     if args.method == "PPO":
@@ -262,13 +262,24 @@ def select_learner(args,inputs,externalActions,filename,n_tasks,episodic=True):
     else:
         raise Exception("learner ",args.method," not supported")
     return method
+def random_data():
+    np.random.seed(0)
+    total_data_points=1*10**6
+    data=np.random.random(size=(total_data_points,4))  # 4-dim observation
+    # now scale to the range of each dimension
+    for i in range(len(data)):
+        data[i][0] = -2.4 + 4.8*data[i][0] # legal range in [-2.4,2.4] from origin
+        data[i][1] = -2.5 + 5 * data[i][1] # from empirical data
+        data[i][2] = -np.pi/12 + np.pi/6 * data[i][2]# legal range in [-pi/12,pi/12] or 15 degrees from vertical
+        data[i][3] = -2.5 + 5 * data[i][3] # from empirical data
+    return data
 if __name__ == '__main__':
     from Parsers.Parse_Arguments import *
     parser.add_argument("-P", dest="policies", type=int,default=1)
     parser.add_argument("-x", dest="experiment_type", type=str, default="single")  # single, lifelong_convergence , lifelong
     args = parser.parse_args()
     print("will start run ",args.run, " with experiment_type ",args.experiment_type, "and ",args.policies, " policies of ", args.method)
-    # args.VISUAL=False
+    # args.VISUAL=True
     # args.method="1to1_DRQN"
     # args.policies=27
     # args.run=5
@@ -309,7 +320,21 @@ if __name__ == '__main__':
         agent.index = 0
     starttime = time.time()
 
-
+    if args.experiment_type == "print_diversity":
+        #environmentfile = environmentfile.replace("print_diversities", "lifelongx18t")
+        if "DRQN" in args.method:
+            filename = filename.replace("print_diversity", "Lifelonglifelong")
+        else:
+            filename = filename.replace("print_diversity", "lifelong")
+        data = random_data()
+        output_div=[]
+        performance_diversities = []
+        div=agent.learner.get_output_diversity(data,metric_type="totalvar")
+        print("div = "+str(div))
+        output_div.append(div)
+        performance_diversities.append(None)
+        dump_incremental(filename+"_outputdiversity_totalvar",(output_div,performance_diversities))
+        exit(0)
     #print(agent.learner.__dict__)
 
     for i in range(agent.index,len(indices)):
