@@ -279,11 +279,11 @@ if __name__ == '__main__':
     parser.add_argument("-x", dest="experiment_type", type=str, default="single")  # single, lifelong_convergence , lifelong
     args = parser.parse_args()
     print("will start run ",args.run, " with experiment_type ",args.experiment_type, "and ",args.policies, " policies of ", args.method)
+    # args.experiment_type="print_diversity"
     # args.VISUAL=True
     # args.method="1to1_DRQN"
     # args.policies=27
     # args.run=5
-    # args.experiment_type="lifelong"
     # args.filename="/home/david/LifelongRL"
     # args.environment_file=False
     filename=args.filename +args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
@@ -303,6 +303,8 @@ if __name__ == '__main__':
     # directory, including one with existing data -- all monitor files
     # will be namespaced). You can also dump to a tempdir if you'd
     # like: tempfile.mkdtemp().
+    filename = filename.replace("print_diversity", "lifelong")
+
 
     envs, indices, taskblockend = get_games(args)
     if args.environment_file:
@@ -321,11 +323,6 @@ if __name__ == '__main__':
     starttime = time.time()
 
     if args.experiment_type == "print_diversity":
-        #environmentfile = environmentfile.replace("print_diversities", "lifelongx18t")
-        if "DRQN" in args.method:
-            filename = filename.replace("print_diversity", "Lifelonglifelong")
-        else:
-            filename = filename.replace("print_diversity", "lifelong")
         data = random_data()
         output_div=[]
         performance_diversities = []
@@ -336,7 +333,7 @@ if __name__ == '__main__':
         dump_incremental(filename+"_outputdiversity_totalvar",(output_div,performance_diversities))
         exit(0)
     #print(agent.learner.__dict__)
-
+    raise Exception("not done diversity run?")
     for i in range(agent.index,len(indices)):
         j=indices[i]
         env=envs[j]

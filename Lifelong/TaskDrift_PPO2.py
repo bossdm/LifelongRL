@@ -27,7 +27,10 @@ class TaskDriftPPO(PPO_Learner,TaskDriftBase):
         N = len(datapoints)-trace_length
         spread=0
         for i in range(0,N):
-            input = datapoints[i:i+trace_length]
+            if trace_length == 1:
+                input = datapoints[i]
+            else:
+                input = datapoints[i:i + trace_length]
             predictions = [instance.process_datapoint(input) for instance in PPO_instances]
             if metric_type=="totalvar":
                 #M = np.mean(predictions,axis=0)   # compute total variation distance of all pols to the mean pol
