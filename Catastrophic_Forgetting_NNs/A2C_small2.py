@@ -355,7 +355,7 @@ class PPO_Agent(A2CAgent):
     # load the saved model
     def load(self, name):
         #self.model.load_weights(name)
-        self.init_PPO(name+'_session')
+        self.init_PPO(name+'_session',recurrent=False)  # change this setting depending on recurrency
 
     # save the model which is under training
     def save(self, name):
