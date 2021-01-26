@@ -25,6 +25,8 @@ class RandomLearner(CompleteLearner):
     def cycle(self,agent,environment):
         self.setAction()
         self.performAction(agent,environment)
+    def atari_cycle(self, observation):
+        self.setAction()
     def performAction(self, agent, environment):
         if isinstance(agent.learner.chosenAction,ExternalAction):
             agent.learner.chosenAction.perform([agent,environment])

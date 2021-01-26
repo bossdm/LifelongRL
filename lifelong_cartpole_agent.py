@@ -99,6 +99,12 @@ def get_games(args):
             np.random.seed(args.run)  # only first sequence is random
             taskblockend=FRAMES_PER_TASK
             return environments, indices, taskblockend
+        elif args.experiment_type == "randomBaseline":
+            indices=range(27)
+            # now set the correct random state
+            np.random.seed(0)
+            taskblockend=TASK_BLOCK_SIZE
+            return environments, indices, taskblockend
         elif args.experiment_type == "lifelong":
             indices = indices_lifelong(args.run)
             # now set the correct random state
@@ -155,6 +161,13 @@ def select_learner(args,inputs,externalActions,filename,n_tasks,episodic=True):
         from Catastrophic_Forgetting_NNs.A2C_Learner2 import PPO_Learner
         settings = get_A2C_configs(inputs, externalActions, filename, episodic)
         method = PPO_Learner(**settings)
+    elif args.method == "MatchingDRQN":
+        from Catastrophic_Forgetting_NNs.DRQN_Learner import DRQN_Learner
+        from Catastrophic_Forgetting_NNs.drqn_small import MultiTaskDoubleDRQNAgent
+        settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
+        settings["multigoal"]=True
+        settings["buffer_size"]=400000//27 #distribute equally among tasks
+        method = DRQN_Learner( **settings)
     elif args.method == "DRQN":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import DRQN_Learner
         settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
@@ -258,6 +271,9 @@ def select_learner(args,inputs,externalActions,filename,n_tasks,episodic=True):
         method = HomeostaticPol(episodic=episodic, actions=externalActions, filename=filename, pols=pols, weights=None,
                                 **homeostatic_params)
         method.set_tasks({(i,): 1. / float(n_tasks) for i in range(n_tasks)})
+    elif args.method == "RandomLearner":
+        from Methods.RandomLearner import RandomLearner
+        method = RandomLearner(range(2),"")
     #elif: 1to1 not needed since we just converge on the task here, can use single_task runs
     else:
         raise Exception("learner ",args.method," not supported")
@@ -279,13 +295,13 @@ if __name__ == '__main__':
     parser.add_argument("-x", dest="experiment_type", type=str, default="single")  # single, lifelong_convergence , lifelong
     args = parser.parse_args()
     print("will start run ",args.run, " with experiment_type ",args.experiment_type, "and ",args.policies, " policies of ", args.method)
-    # args.experiment_type="print_diversity"
-    # args.VISUAL=True
-    # args.method="1to1_DRQN"
-    # args.policies=27
-    # args.run=5
-    # args.filename="/home/david/LifelongRL"
-    # args.environment_file=False
+    # args.experiment_type="lifelong"
+    # args.VISUAL=False
+    # args.method="MatchingDRQN"
+    # args.policies=1
+    # args.run=0
+    # args.filename="/home/david/LifelongRL/"
+    args.environment_file=False
     filename=args.filename +args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
     walltime = 60*3600 #60*3600  # 60 hours by default
     if args.walltime:
@@ -332,8 +348,39 @@ if __name__ == '__main__':
         performance_diversities.append(None)
         dump_incremental(filename+"_outputdiversity_totalvar",(output_div,performance_diversities))
         exit(0)
+    if args.experiment_type == "randomBaseline":
+        iterations = 10
+        randomBaselines={}
+        for i in indices:
+
+            performances = []
+            j = indices[i]
+            env = envs[j]
+            print("task ", j)
+            for k in range(iterations):
+                print("iteration ", k)
+                # randomly initialise the learner again
+                agent = LifelongCartpoleAgent(args, filename, len(envs))
+                agent.total_t = 0
+                agent.num_episodes = 0
+                agent.taskblock_t = 0
+                agent.learner.new_task([j])
+                while agent.taskblock_t < taskblockend:
+                    consumed_steps = perform_episode(args.VISUAL, env, agent, args.run * 100000 + agent.num_episodes,
+                                                     agent.total_t)
+                    agent.taskblock_t += consumed_steps
+                    agent.total_t += consumed_steps  # need to add because primitive data types not passed by reference
+                    agent.num_episodes += 1
+                performance = agent.learner.R / float(agent.num_episodes)
+                print("performance = ", performance)
+                performances.append(performance)
+                agent.learner.end_task()
+
+            randomBaselines[(j,)] = np.mean(performances)
+        dump_incremental("randomBaseLinesCartpole"+args.method+".pkl",randomBaselines)
+        exit(0)
     #print(agent.learner.__dict__)
-    raise Exception("not done diversity run?")
+
     for i in range(agent.index,len(indices)):
         j=indices[i]
         env=envs[j]

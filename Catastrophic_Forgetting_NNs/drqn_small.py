@@ -132,7 +132,7 @@ class EpisodicReplayMemory(ReplayMemory):
     def __init__(self, buffer_size=400000):
         """
 
-        :param buffer_size: how many episodes (so the number of experiences:buffer_size * episode_length)
+        :param buffer_size: how many experiences
         """
         self.max_num_episodes=buffer_size
         self.ep=-1
@@ -192,7 +192,7 @@ class EpisodicReplayMemory(ReplayMemory):
          return self.buffer[start:end]
 
 class MultiGoalNonEpisodicReplayMemory(NonEpisodicReplayMemory):
-    def __init__(self,buffer_size=100000):
+    def __init__(self,buffer_size):
         """
 
         :param buffer_size:  equal to the number of experiences
@@ -230,7 +230,7 @@ class MultiGoalNonEpisodicReplayMemory(NonEpisodicReplayMemory):
 
         return gs
 class MultiGoalEpisodicReplayMemory(EpisodicReplayMemory):
-    def __init__(self,buffer_size=100000):
+    def __init__(self,buffer_size):
         """
 
         :param buffer_size:  equal to the number of experiences
@@ -274,7 +274,7 @@ class DoubleDRQNAgent:
     q=None
     episodic = False
     def __init__(self, state_size, action_size, trace_length, batch_size=None,episodic=True,
-                 double=False, init_epsilon=None, final_epsilon=None, learning_rate=0.10):
+                 double=False, init_epsilon=None, final_epsilon=None):
         """
 
         :param state_size:  (trace_length, img_rows, img_cols, img_channels)
@@ -516,7 +516,13 @@ class FeatureDoubleDRQNAgent(DoubleDRQNAgent):
                 a = np.argmax(val[i])
                 target[i][int(action[i][-1])] = reward[i][-1] + self.gamma * (target_val[i][a])
         return [target, features]
-
+    def new_task(self,feature):
+        """
+        when new feature arrives, need to switch to task-specific
+        :param feature:
+        :return:
+        """
+        pass
 
 class HindsightDoubleDRQNAgent(DoubleDRQNAgent):
     def __init__(self, reward_range,train_rfun,state_size, rsa_size,action_size, trace_length, batch_size=None,episodic=True, double=False):
@@ -622,23 +628,26 @@ class HindsightDoubleDRQNAgent(DoubleDRQNAgent):
 
 
 class MultiTaskDoubleDRQNAgent(DoubleDRQNAgent):
-    def __init__(self, state_size, action_size, trace_length, batch_size=None,episodic=True, double=False):
+    def __init__(self, buffer_size, state_size, action_size, trace_length, batch_size=None,episodic=True,
+                 double=False, init_epsilon=None, final_epsilon=None):
         """
 
         :param state_size:  (trace_length, img_rows, img_cols, img_channels)
         :param action_size: number of actions
         :param trace_length:
         """
-        DoubleDRQNAgent.__init__(self,state_size,action_size,trace_length,batch_size,episodic,double)
+        self.buffer_size = buffer_size
+        DoubleDRQNAgent.__init__(self,state_size, action_size, trace_length, batch_size,episodic,
+                 double, init_epsilon, final_epsilon)
 
 
     @overrides
     def init_memory(self,episodic):
         # Create replay memory
         if episodic:
-            self.memory = MultiGoalEpisodicReplayMemory()
+            self.memory = MultiGoalEpisodicReplayMemory(self.buffer_size)
         else:
-            self.memory = MultiGoalNonEpisodicReplayMemory()
+            self.memory = MultiGoalNonEpisodicReplayMemory(self.buffer_size)
 
 
     @overrides
@@ -688,6 +697,13 @@ class MultiTaskDoubleDRQNAgent(DoubleDRQNAgent):
 
         return np.max(target[-1, -1]), loss
 
+    def new_task(self,feature):
+        """
+        when new feature arrives, need to switch to task-specific
+        :param feature:
+        :return:
+        """
+        self.memory.add_goal(tuple(feature))
 def main():
     import tensorflow.compat.v1 as tf
     # Avoid Tensorflow eats up GPU memory

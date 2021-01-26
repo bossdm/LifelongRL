@@ -5,17 +5,17 @@ from Environment import *
 
 
 from ExperimentUtils import dump_incremental
-from StatsAndVisualisation.Statistics import POcmanMeltingPotStatistics
+#from StatsAndVisualisation.Statistics import POcmanMeltingPotStatistics
 from random import randint
 
 from Agents.Agents import PacmanAgent
-from overrides import overrides
+#from overrides import overrides
 from mapobjects import EmptyObject, PacmanFood, PacmanPoison,NormalGhost, ChasedGhost, Power, Obstacle
 from MazeUtils import manhattan_dist, directions, directional_dist, opposite_direction, VonNeumannNeighbourhoodPlus, \
     check_toroid_X, check_toroid_Y
 
 from mapobjects import *
-import ray
+#import ray
 DEBUG_MODE = False
 STOPTIME = 2000000 #just a default
 SAMPLING_RATE= 10000
@@ -537,7 +537,7 @@ class POcman(NavigationEnvironment):
 
         NavigationEnvironment.__init__(self, agent, visual, params)
         self.maze = np.zeros((self.sizeX, self.sizeY))
-    @overrides
+    #@overrides
     def is_actor(self):
         return self._is_actor
     def run_workers(self):
@@ -574,7 +574,7 @@ class POcman(NavigationEnvironment):
         self.t = ray.get(self.actors[0].get_time.remote())
     def get_map(self, x, y):
         return self.map_flag_to_mapel(x,y)
-    @overrides
+    #@overrides
     def set_tasks(self,tasks,stat_freq):
         BaseEnvironment.set_tasks(self,tasks,stat_freq)
         self.initStats()
@@ -817,13 +817,13 @@ class POcman(NavigationEnvironment):
                                         filename=filename)
 
     # end visualisation
-    @overrides
+    #@overrides
     def generateMap(self, params=None):
         self.new_level()
 
         #self.agent.learner.new_task(self.currentTask.task_feature)
 
-    @overrides
+    #@overrides
     def printStatistics(self):
         pass
     def reset(self):
@@ -1076,7 +1076,7 @@ class POcman(NavigationEnvironment):
         if key not in self.stats[slice]:
             self.stats[slice][key] = POcmanMeltingPotStatistics(self.pocman_home, F, self)
         self.stats[slice][key].update((self.agent.x, self.agent.y), self.get_object(), self.agent.learner.chosenAction)
-    @overrides
+    #@overrides
     def updateStat(self):
         slice=self.getCurrentSlice()
         if self.timePolicy.stepCondition(self):
@@ -1101,7 +1101,7 @@ class POcman(NavigationEnvironment):
         # self.old_F = F
         # self.oldx = self.agent.x
         # self.oldy = self.agent.y
-    @overrides
+    #@overrides
     def printStatistics(self):
         POcmanMeltingPotStatistics.getAllStats(self.filename,self.stats)
         dump_incremental(self.filename+"_POcmanStats",self.stats)
@@ -1681,7 +1681,7 @@ def reward_fun_pocman(agent, environment):
             assert reward==0 or reward==-1
     return reward
 
-@ray.remote
+#@ray.remote
 class POcmanActor(POcman):
     def __init__(self, agent_params, visual, params, index):
 
@@ -1777,7 +1777,7 @@ class POcmanActor(POcman):
         self.printStatistics()
         self.agent.learner.printPolicy()
         self.agent.learner.save_stats(filename)
-    @overrides
+    #@overrides
     def printStatistics(self):
         self.agent.learner.printStatistics()
 

@@ -277,7 +277,7 @@ class HomeostaticStats(LearnerStatistics):
         if not self.do_taskdrift():
             print("1to1/unadaptive policy")
             return # must be one-to-one
-        self.task_pol_development_statistics(Vstep/2)
+        self.task_pol_development_statistics(Vstep//2)
         D=len(self.num_deaths)
         pol_coords=HomeostaticPol.get_pol_coords(D)
         # add the final clustering

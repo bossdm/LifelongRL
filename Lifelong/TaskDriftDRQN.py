@@ -22,9 +22,9 @@ class TaskDriftDRQN(DRQN_Learner,TaskDriftBase):
                 weights=np.append(weights,W)
         return weights
     @classmethod
-    def get_output_diversity(cls,PPO_instances,datapoints,metric_type="std"):
+    def get_output_diversity(cls,DRQN_instances,datapoints,metric_type="std"):
         assert metric_type=="totalvar"
-        trace_length=PPO_instances[0].agent.trace_length
+        trace_length=DRQN_instances[0].agent.trace_length
         N = len(datapoints)-trace_length
         spread=0
         for i in range(0,N):
@@ -32,13 +32,13 @@ class TaskDriftDRQN(DRQN_Learner,TaskDriftBase):
                 input=datapoints[i]
             else:
                 input = datapoints[i:i+trace_length]
-            predictions = [instance.process_datapoint(input) for instance in PPO_instances]
+            predictions = [instance.process_datapoint(input) for instance in DRQN_instances]
             if metric_type=="totalvar":
                 #M = np.mean(predictions,axis=0)   # compute total variation distance of all pols to the mean pol
                 mv=0.0
                 count=0.0
-                for i in range(len(PPO_instances)):
-                    for j in range(len(PPO_instances)):
+                for i in range(len(DRQN_instances)):
+                    for j in range(len(DRQN_instances)):
                         if i==j:
                             continue
                         temp=np.abs(predictions[i]-predictions[j])

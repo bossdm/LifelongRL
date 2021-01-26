@@ -33,7 +33,7 @@ class DRQN_Learner(CompleteLearner):
 
     def __init__(self,task_features,use_task_bias,use_task_gain,n_inputs,trace_length,actions,file,episodic,loss=None,
                  target_model=False,num_neurons=80,epsilon_change=False,init_epsilon=None,final_epsilon=None,
-                 agent=None,intervals=[],num_features=0,learning_rate=0.10,recurrent=True):
+                 agent=None,intervals=[],num_features=0,learning_rate=0.10,recurrent=True,multigoal=False,buffer_size=None):
         CompleteLearner.__init__(self,actions,file,episodic)
         self.init_variables(epsilon_change)
 
@@ -43,7 +43,7 @@ class DRQN_Learner(CompleteLearner):
                                                task_features, use_task_bias, use_task_gain, num_neurons,
                                                    target_model,init_epsilon,final_epsilon,
                                                num_features,learning_rate,
-                                               recurrent)
+                                               recurrent,multigoal,buffer_size)
         self.state_size = DRQN_Learner.set_state_size(n_inputs, trace_length,recurrent)
         self.continue_experiment(intervals)
         # self.model_objective = EWC_objective(lbda_task,learning_rate,batch_size,model,n_in, n_out,lbda,output_type=OutputType.linear,epochs=200,
@@ -59,17 +59,24 @@ class DRQN_Learner(CompleteLearner):
     def init_agent(cls,n_inputs,actions,trace_length,episodic,task_features, use_task_bias, use_task_gain,
                    num_neurons, target_model,init_epsilon=None,final_epsilon=None,num_features=0,
                    learning_rate=0.10,
-                   recurrent=True):
+                   recurrent=True,
+                   multigoal=False,
+                   buffer_size=None):
         action_size = len(actions)
         state_size = DRQN_Learner.set_state_size(n_inputs, trace_length, recurrent)
-        if num_features > 0:
-            agent = FeatureDoubleDRQNAgent(num_features, state_size, action_size, trace_length,
-                                    episodic=episodic, init_epsilon=init_epsilon,
+        if multigoal:
+            agent = MultiTaskDoubleDRQNAgent(buffer_size,state_size, action_size, trace_length,
+                                    episodic=episodic,init_epsilon=init_epsilon,
                                     final_epsilon=final_epsilon)
         else:
-            agent = DoubleDRQNAgent(state_size, action_size, trace_length,
-                                episodic=episodic,init_epsilon=init_epsilon,
-                                final_epsilon=final_epsilon)
+            if num_features > 0:
+                agent = FeatureDoubleDRQNAgent(num_features, state_size, action_size, trace_length,
+                                        episodic=episodic, init_epsilon=init_epsilon,
+                                        final_epsilon=final_epsilon)
+            else:
+                agent = DoubleDRQNAgent(state_size, action_size, trace_length,
+                                    episodic=episodic,init_epsilon=init_epsilon,
+                                    final_epsilon=final_epsilon)
 
 
         #agent.epsilon=.05
@@ -214,11 +221,11 @@ class DRQN_Learner(CompleteLearner):
     @overrides
     def new_task(self,feature):
         """
-        when new feature arrives, need to switch to task-specific
+        when new feature arrives, need to switch to task-specific (do nothing except when experience matching)
         :param feature:
         :return:
         """
-        pass
+        self.agent.new_task(feature)
     @overrides
     def setObservation(self,agent,environment):
         self.agent.total_t = self.total_t

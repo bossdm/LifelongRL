@@ -120,7 +120,7 @@ class A2C_Learner(CompleteLearner):
     def new_elementary_task(self):
         #print("new elementary task")
         if self.episodic :
-            print("episodic")
+            #print("episodic")
             self.agent.reset_states()
             self.t = 0
 
