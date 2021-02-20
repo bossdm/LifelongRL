@@ -203,22 +203,28 @@ class MultiGoalNonEpisodicReplayMemory(NonEpisodicReplayMemory):
     def add_goal(self,goal):
         if goal not in self.buffers:
             self.buffers[goal]=NonEpisodicReplayMemory(self.buffer_size)
-            self.ts[goal]=0
+            self.ts[goal] = 0
         self.current_goal=goal
     @overrides
-    def add(self, episode_experience):
+    def add(self, experience):
         """
 
         :param episode_experience: episode in case of Episodic, experience in case of NonEpisodic
         :return:
         """
-        self.buffers[self.current_goal].add(episode_experience)
+        self.buffers[self.current_goal].add(experience)
+        self.ts[self.current_goal] += 1
 
     @overrides
-    def sample(self, goals, batch_size, trace_length):
-        samplegoals=np.random.choice(goals,batch_size)
-        data=[self.buffers[goal].sample(1,trace_length) for goal in samplegoals]
-        return np.array(data)
+    def sample(self, batch_size, trace_length):
+        samplegoals=np.random.choice(len(self.replay_goals),batch_size)
+        data = []
+        terminals = []
+        for i in samplegoals:
+            sample, terminal=self.buffers[self.replay_goals[i]].sample(1,trace_length)
+            data = np.append(sample)
+            terminals.append(terminal)
+        return data, terminals
     def replay_ready(self, goal,start, batch_size):
         t=self.ts[goal]
         return t >= start and t >= batch_size
@@ -237,8 +243,8 @@ class MultiGoalEpisodicReplayMemory(EpisodicReplayMemory):
         """
         self.buffer_size=buffer_size
         self.buffers={}
-        self.ts={}
-
+        self.ts = {}
+        self.replay_ready_factor = 27 # the number of tasks
     def add_goal(self,goal):
         if goal not in self.buffers:
             self.buffers[goal]=EpisodicReplayMemory(self.buffer_size)
@@ -252,12 +258,26 @@ class MultiGoalEpisodicReplayMemory(EpisodicReplayMemory):
         :return:
         """
         self.buffers[self.current_goal].add(episode_experience)
+        self.ts[self.current_goal]+=len(episode_experience)
 
     @overrides
-    def sample(self, goals, batch_size, trace_length):
-        samplegoals=np.random.choice(len(goals),batch_size)
-        data=[self.buffers[goals[i]].sample(1,trace_length)[0] for i in samplegoals]
-        return data
+    def sample(self, batch_size, trace_length):
+        samplegoals=np.random.choice(len(self.replay_goals),batch_size)
+        data = [[[[] for j in range(4)] for k in range(1) ] for i in range(len(samplegoals))]
+        terminals = []
+        for i, g in enumerate(samplegoals):
+            sample, terms=self.buffers[self.replay_goals[g]].sample(1,trace_length)
+            s,a,r,ss = sample[0][0]
+            data[i][0][0] = s
+            data[i][0][1] = a
+            data[i][0][2] = r
+            data[i][0][3] = ss
+            # data[0].append(s)
+            # data[1].append(a)
+            # data[2].append(r)
+            # data[3].append(ss)
+            terminals+=terms
+        return np.array(data), terminals
 
     def replay_ready(self, goal, start, batch_size):
         t=self.ts[goal]
@@ -266,7 +286,7 @@ class MultiGoalEpisodicReplayMemory(EpisodicReplayMemory):
     def get_replay_ready_goals(self, start, batch_size):
         gs = []
         for goal in self.buffers:
-            if self.replay_ready(goal, start, batch_size):
+            if self.replay_ready(goal, start/self.replay_ready_factor, batch_size):
                 gs.append(goal)
 
         return gs
@@ -469,7 +489,13 @@ class DoubleDRQNAgent:
         if self.target_model is not None:
             self.target_model.save(name+"_targetnetwork.h5")
             del self.target_model
-
+    def new_task(self,feature):
+        """
+        when new feature arrives, need to switch to task-specific
+        :param feature:
+        :return:
+        """
+        pass
 
 class FeatureDoubleDRQNAgent(DoubleDRQNAgent):
     q=None
@@ -561,7 +587,7 @@ class HindsightDoubleDRQNAgent(DoubleDRQNAgent):
 
         goals=[]
         for goal in self.memory.buffers:
-            if self.total_t[goal] % self.update_freq == 0 and self.check_replay_ready(goal):
+            if self.check_replay_ready(goal):
                 if DEBUG_MODE:
                     print("train")
                 goals.append(goal)
@@ -570,60 +596,9 @@ class HindsightDoubleDRQNAgent(DoubleDRQNAgent):
     @overrides
     def _train_replay(self,batch_size):
 
-        goals=self.get_goals()
-        if not goals: return None,None
-        sampled = self.memory.sample(goals, batch_size, self.trace_length+1)  # 32x8x4
-
-
-        sample_traces=sampled.values()
-
-        # Shape (batch_size, trace_length, img_rows, img_cols, color_channels)
-        update_input = np.zeros(((batch_size,) + self.state_size))  # 32x8x64x64x3
-        rewardfuninput=np.zeros(((batch_size,) + self.rsa_size))
-        target_update_input = np.zeros(((batch_size,) + self.state_size))
-
-        action = np.zeros((batch_size, self.trace_length))  # 32x8
-        reward = np.zeros((batch_size, self.trace_length))
-
-        for i in range(batch_size):
-            for j in range(self.trace_length+1):
-                if j <= self.trace_length:
-                    update_input[i, j, :] = sample_traces[i][j][0]
-                    action[i, j] = sample_traces[i][j][1]
-                    reward[i, j] = sample_traces[i][j][2]
-                    target_update_input[i, j, :] = sample_traces[i][j][3]
-                if j >=1:
-                    rewardfuninput[i,j-1, :] = np.append(self.normalise_reward(reward[i,j-1]),
-                                                         [update_input[i,j],action[i,j]/float(self.n_actions)])
-
-
-
-        # Only use the last trace for training
-        target = self.model.predict(update_input)  # 32x3
-        if self.target_model is not None:
-            target_val=self.target_model.predict(target_update_input)  # 32x3
-            if self.double:
-                val = self.model.predict(target_update_input)
-            else:
-                val = target_val
-        else:
-            val = self.model.predict(target_update_input)
-            target_val=val
-
-
-
-        for i in range(batch_size):
-            a = np.argmax(val[i])
-            target[i][int(action[i][-1])] = reward[i][-1] + self.gamma * (target_val[i][a])
-
-
-        loss = self.model.train_on_batch(update_input, target)
-
-        reward_loss = self.model.train_on_batch(rewardfuninput, reward[:,self.trace_length])
-
-        if DEBUG_MODE:
-            print("rewardfunction loss=%.5f"%(reward_loss))
-        return np.max(target[-1, -1]), loss
+        self.memory.replay_goals=self.get_goals()
+        if not self.memory.replay_goals: return None,None
+        return DoubleDRQNAgent._train_replay(batch_size)
 
 
 
@@ -653,49 +628,9 @@ class MultiTaskDoubleDRQNAgent(DoubleDRQNAgent):
     @overrides
     def _train_replay(self,batch_size):
         # Do the training
-        goals=self.memory.get_replay_ready_goals(self.replay_start_size,self.batch_size+self.trace_length)
-        if not goals: return None,None
-        sample_traces, terminals = self.memory.sample(goals,batch_size, self.trace_length)  # 32x8x4
-
-        # Shape (batch_size, trace_length, img_rows, img_cols, color_channels)
-        update_input = np.zeros(((batch_size,) + self.state_size))  # 32x8x64x64x3
-        target_update_input = np.zeros(((batch_size,) + self.state_size))
-
-        action = np.zeros((batch_size, self.trace_length))  # 32x8
-        reward = np.zeros((batch_size, self.trace_length))
-
-        for i in range(batch_size):
-            for j in range(self.trace_length):
-                update_input[i, j, :] = sample_traces[i][j][0]
-                action[i, j] = sample_traces[i][j][1]
-                reward[i, j] = sample_traces[i][j][2]
-                target_update_input[i, j, :] = sample_traces[i][j][3]
-
-        # Only use the last trace for training
-        target = self.model.predict(update_input)  # 32x3
-        if self.target_model is not None:
-            target_val=self.target_model.predict(target_update_input)  # 32x3
-            if self.double:
-                val = self.model.predict(target_update_input)
-            else:
-                val = target_val
-        else:
-            val = self.model.predict(target_update_input)
-            target_val=val
-
-
-
-        for i in range(batch_size):
-            if terminals[i]:
-                target[i][int(action[i][-1])] = reward[i][-1]
-            else:
-                a = np.argmax(val[i])
-                target[i][int(action[i][-1])] = reward[i][-1] + self.gamma * (target_val[i][a])
-
-
-        loss = self.model.train_on_batch(update_input, target)
-
-        return np.max(target[-1, -1]), loss
+        self.memory.replay_goals=self.memory.get_replay_ready_goals(self.replay_start_size,self.batch_size+self.trace_length)
+        if not self.memory.replay_goals: return None,None
+        return DoubleDRQNAgent._train_replay(self,batch_size)
 
     def new_task(self,feature):
         """
@@ -885,6 +820,33 @@ def nonepisodic_buffer_test():
             assert np.all(experiences[i]<experiences[i+1] for i in range(len(experiences)-1))
             print(experiences)
             print()
+def multigoal_buffer_test():
+    mem=MultiGoalEpisodicReplayMemory(10000)
+    total_t=0
+    # goal 0
+    current_goal=(0,)
+    mem.add_goal(current_goal)
+    for e in range(100):
+        episode_buffer=[]
+        for t in range(50):
+
+            episode_buffer.append(total_t)
+            total_t += 1
+        mem.add(episode_buffer)
+
+    # goal 1
+    current_goal=(1,)
+    mem.add_goal(current_goal)
+    for e in range(100):
+        episode_buffer=[]
+        for t in range(50):
+
+            episode_buffer.append(total_t)
+            total_t += 1
+        mem.add(episode_buffer)
+
+    print("")
 
 if __name__ == "__main__":
-    nonepisodic_buffer_test()
+    #nonepisodic_buffer_test()
+    multigoal_buffer_test()

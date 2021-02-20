@@ -301,7 +301,7 @@ if __name__ == '__main__':
     # args.policies=1
     # args.run=0
     # args.filename="/home/david/LifelongRL/"
-    args.environment_file=False
+    # args.environment_file=False
     filename=args.filename +args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
     walltime = 60*3600 #60*3600  # 60 hours by default
     if args.walltime:

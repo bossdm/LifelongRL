@@ -856,6 +856,37 @@ def main(arg_list):
             performance_diversities.append(None)
         dump_incremental(filename+"_outputdiversity_totalvar",(output_div,performance_diversities))
         return
+    if args.experiment_type == "randomBaseline":
+        iterations = 10
+        randomBaselines={}
+        for i in range(18):
+
+            performances = []
+            j = indices[i]
+            env = envs[j]
+            print("task ", j)
+            for k in range(iterations):
+                print("iteration ", k)
+                # randomly initialise the learner again
+                agent = LifelongCartpoleAgent(args, filename, len(envs))
+                agent.total_t = 0
+                agent.num_episodes = 0
+                agent.taskblock_t = 0
+                agent.learner.new_task([j])
+                while agent.taskblock_t < taskblockend:
+                    consumed_steps = perform_episode(args.VISUAL, env, agent, args.run * 100000 + agent.num_episodes,
+                                                     agent.total_t)
+                    agent.taskblock_t += consumed_steps
+                    agent.total_t += consumed_steps  # need to add because primitive data types not passed by reference
+                    agent.num_episodes += 1
+                performance = agent.learner.R / float(agent.num_episodes)
+                print("performance = ", performance)
+                performances.append(performance)
+                agent.learner.end_task()
+
+            randomBaselines[(j,)] = np.mean(performances)
+        dump_incremental("randomBaseLinesCartpole"+args.method+".pkl",randomBaselines)
+        exit(0)
 
     pacmanparams['num_actors'] = 5
 
