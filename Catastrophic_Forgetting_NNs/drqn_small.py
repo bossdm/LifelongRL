@@ -168,7 +168,7 @@ class EpisodicReplayMemory(ReplayMemory):
             if point +trace_length == len(episode):
                  terminals[i]=True
 
-        sampledTraces = np.array(sampledTraces)
+        sampledTraces = np.array(sampledTraces,dtype=object)
         return sampledTraces ,terminals
 
     def get_trace(self,start,end):
@@ -196,8 +196,13 @@ class ReservoirSamplingMemory:
 
     def _add(self,experience, term):
         if self.full(): # remove lowest-ranked entry index
-            min_index = self.buffer.index(min(self.buffer[0:self.final_index()], key=lambda item: item[1]))
-            print("removing index ",min_index, " with value ", self.buffer[min_index])
+            minimum=float("inf")
+            for i in range(self.final_index()):
+                experience,r , term = self.buffer[i]
+                if r < minimum:
+                    minimum=r
+                    min_index=i
+            #print("removing index ",min_index, " with value ", self.buffer[min_index])
             del self.buffer[min_index]
             #self.max_sp=max(self.sp,self.max_sp)
         r = np.random.normal()
@@ -239,7 +244,7 @@ class ReservoirSamplingMemory:
             sampledTraces[i][0][3] = ss
             terminals[i]= term
 
-        sampledTraces = np.array(sampledTraces)
+        sampledTraces = np.array(sampledTraces,dtype=object)
         return sampledTraces ,terminals
 
 class MultiGoalNonEpisodicReplayMemory(NonEpisodicReplayMemory):
@@ -328,7 +333,7 @@ class MultiGoalEpisodicReplayMemory(EpisodicReplayMemory):
             # data[2].append(r)
             # data[3].append(ss)
             terminals+=terms
-        return np.array(data), terminals
+        return np.array(data,dtype=object), terminals
 
     def replay_ready(self, goal, start, batch_size):
         t=self.ts[goal]
