@@ -304,13 +304,13 @@ if __name__ == '__main__':
     parser.add_argument("-x", dest="experiment_type", type=str, default="single")  # single, lifelong_convergence , lifelong
     args = parser.parse_args()
     print("will start run ",args.run, " with experiment_type ",args.experiment_type, "and ",args.policies, " policies of ", args.method)
-    args.experiment_type="lifelong"
-    args.VISUAL=False
-    args.method="SelectiveDRQN"
-    args.policies=1
-    args.run=0
-    args.filename="/home/david/LifelongRL/"
-    args.environment_file=False
+    # args.experiment_type="lifelong"
+    # args.VISUAL=False
+    # args.method="SelectiveDRQN"
+    # args.policies=1
+    # args.run=0
+    # args.filename="/home/david/LifelongRL/"
+    # args.environment_file=False
     filename=args.filename +args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
     walltime = 60*3600 #60*3600  # 60 hours by default
     if args.walltime:
