@@ -1,36 +1,19 @@
 #!/usr/bin/env python
 from __future__ import print_function
 
-# import skimage as skimage
-# from skimage import transform, color, exposure
-# from skimage.viewer import ImageViewer
 import random
-from random import choice
+import bisect
 import numpy as np
-from collections import deque
-import time
 
-import json
-from keras.models import model_from_json
 from keras.models import Sequential, load_model, Model
-from keras.layers.wrappers import TimeDistributed
-from keras.layers.core import Dense, Dropout, Activation, Flatten, RepeatVector, Masking
 from keras.layers import Convolution2D, Dense, Flatten, merge, MaxPooling2D, Input, AveragePooling2D, Lambda, merge, \
     Activation, Embedding
-from keras.layers.recurrent import LSTM, GRU
+from keras.layers.recurrent import LSTM
 from keras.optimizers import Adadelta
 from keras import backend as K
 from abc import abstractmethod
 from overrides import overrides
-# from vizdoom import DoomGame, ScreenResolution
-# from vizdoom import *
-import itertools as it
-from time import sleep
 
-import sys,os
-
-
-from Catastrophic_Forgetting_NNs.CustomNetworks import CustomNetworks
 DEBUG_MODE=False
 
 def preprocessImg(img, size):
@@ -191,6 +174,74 @@ class EpisodicReplayMemory(ReplayMemory):
     def get_trace(self,start,end):
          return self.buffer[start:end]
 
+class ReservoirSamplingMemory:
+    """
+    give a different key depending on random number, match the global distribution
+    """
+    def __init__(self, buffer_size=400000, FIFO=0):
+        """
+        :param buffer_size: how many experiences
+        """
+        self.buffer_size = buffer_size
+        self.buffer= []
+        self.FIFO = FIFO  # how many of the latest data to preserve regardless of priority
+
+    def final_index(self):
+        """
+        final index of non-FIFO part
+        """
+        return len(self.buffer) - self.FIFO
+    def full(self):
+        return len(self.buffer) >= self.buffer_size
+
+    def _add(self,experience, term):
+        if self.full(): # remove lowest-ranked entry index
+            min_index = self.buffer.index(min(self.buffer[0:self.final_index()], key=lambda item: item[1]))
+            print("removing index ",min_index, " with value ", self.buffer[min_index])
+            del self.buffer[min_index]
+            #self.max_sp=max(self.sp,self.max_sp)
+        r = np.random.normal()
+
+        entry = (experience, r, term)
+        # add the new entry on its index
+        self.buffer.append(entry)
+
+
+        # sort the buffer indices based on the random number
+        #self.buffer = sorted(self.buffer, key=lambda item: item[1])
+
+        # no need to sort just the lowest entry needs to be removed
+
+
+
+    def add(self, episode):
+        """
+        :param episode: episode
+        :return:
+        """
+        for experience in episode[:-1]:
+            self._add(experience,False)
+        self._add(episode[-1],True)
+
+    def sample(self, batch_size, _trace_length):
+        buffer_indices = random.sample(range(len(self.buffer)), batch_size)
+        sampledTraces = [[[None,None,None,None]] for i in range(batch_size)]
+        terminals=[False for i in range(batch_size)]
+        for i in range(batch_size):
+            #print(len(episode))
+            idx = buffer_indices[i]
+            experience, _r, term  = self.buffer[idx]
+            s,a,r,ss = experience
+
+            sampledTraces[i][0][0] = s
+            sampledTraces[i][0][1] = a
+            sampledTraces[i][0][2] = r
+            sampledTraces[i][0][3] = ss
+            terminals[i]= term
+
+        sampledTraces = np.array(sampledTraces)
+        return sampledTraces ,terminals
+
 class MultiGoalNonEpisodicReplayMemory(NonEpisodicReplayMemory):
     def __init__(self,buffer_size):
         """
@@ -342,6 +393,8 @@ class DoubleDRQNAgent:
             self.memory =EpisodicReplayMemory()
         else:
             self.memory = NonEpisodicReplayMemory()
+    def init_selective_memory(self,FIFO):
+        self.memory = ReservoirSamplingMemory(FIFO=FIFO)
     def update_target_model(self):
         """
         After some time interval update the target model to be same with model
@@ -847,6 +900,32 @@ def multigoal_buffer_test():
 
     print("")
 
+def reservoirsampling_test():
+    mem = ReservoirSamplingMemory(100)
+    total_t = 0
+    for e in range(100):
+        episode_buffer=[]
+        for t in range(50):
+
+            episode_buffer.append(total_t)
+            total_t += 1
+        mem.add(episode_buffer)
+    #samples = mem.sample(100,None)
+    print("")
+def reservoirsamplingplusFIFO_test():
+    mem = ReservoirSamplingMemory(100,10)
+    total_t = 0
+    for e in range(100):
+        episode_buffer=[]
+        for t in range(50):
+
+            episode_buffer.append(total_t)
+            total_t += 1
+        mem.add(episode_buffer)
+    #samples = mem.sample(100,None)
+    print("")
+
 if __name__ == "__main__":
     #nonepisodic_buffer_test()
-    multigoal_buffer_test()
+    #multigoal_buffer_test()
+    reservoirsamplingplusFIFO_test()

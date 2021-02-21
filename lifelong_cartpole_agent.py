@@ -163,11 +163,20 @@ def select_learner(args,inputs,externalActions,filename,n_tasks,episodic=True):
         method = PPO_Learner(**settings)
     elif args.method == "MatchingDRQN":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import DRQN_Learner
-        from Catastrophic_Forgetting_NNs.drqn_small import MultiTaskDoubleDRQNAgent
         settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
         settings["multigoal"]=True
         settings["buffer_size"]=400000//27 #distribute equally among tasks
         method = DRQN_Learner( **settings)
+    elif args.method == "SelectiveDRQN":
+        from Catastrophic_Forgetting_NNs.DRQN_Learner import DRQN_Learner
+        settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
+        method = DRQN_Learner( **settings)
+        method.agent.init_selective_memory(FIFO=0)
+    elif args.method == "SelectiveFifoDRQN":
+        from Catastrophic_Forgetting_NNs.DRQN_Learner import DRQN_Learner
+        settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
+        method = DRQN_Learner( **settings)
+        method.agent.init_selective_memory(FIFO=50000)
     elif args.method == "DRQN":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import DRQN_Learner
         settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
@@ -295,13 +304,13 @@ if __name__ == '__main__':
     parser.add_argument("-x", dest="experiment_type", type=str, default="single")  # single, lifelong_convergence , lifelong
     args = parser.parse_args()
     print("will start run ",args.run, " with experiment_type ",args.experiment_type, "and ",args.policies, " policies of ", args.method)
-    # args.experiment_type="lifelong"
-    # args.VISUAL=False
-    # args.method="MatchingDRQN"
-    # args.policies=1
-    # args.run=0
-    # args.filename="/home/david/LifelongRL/"
-    # args.environment_file=False
+    args.experiment_type="lifelong"
+    args.VISUAL=False
+    args.method="SelectiveFifoDRQN"
+    args.policies=1
+    args.run=0
+    args.filename="/home/david/LifelongRL/"
+    args.environment_file=False
     filename=args.filename +args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
     walltime = 60*3600 #60*3600  # 60 hours by default
     if args.walltime:
