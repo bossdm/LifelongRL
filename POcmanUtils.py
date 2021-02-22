@@ -5,7 +5,7 @@ from Environment import *
 
 
 from ExperimentUtils import dump_incremental
-#from StatsAndVisualisation.Statistics import POcmanMeltingPotStatistics
+from StatsAndVisualisation.Statistics import POcmanMeltingPotStatistics
 from random import randint
 
 from Agents.Agents import PacmanAgent
@@ -217,6 +217,16 @@ def get_method(methodname,externalActions,filename,num_PLAs,pacmanparams,inputs,
         from Catastrophic_Forgetting_NNs.DRQN_Learner import DRQN_Learner
         settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
         method = DRQN_Learner( **settings)
+    elif methodname == "SelectiveDRQN":
+        from Catastrophic_Forgetting_NNs.DRQN_Learner import DRQN_Learner
+        settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
+        method = DRQN_Learner( **settings)
+        method.agent.init_selective_memory(FIFO=0)
+    elif methodname == "SelectiveFifoDRQN":
+        from Catastrophic_Forgetting_NNs.DRQN_Learner import DRQN_Learner
+        settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
+        method = DRQN_Learner( **settings)
+        method.agent.init_selective_memory(FIFO=50000)
     elif methodname == "TaskDriftInit_DRQN":
         from Lifelong.HomeostaticPols import HomeostaticPol
         from Lifelong.TaskDriftDRQN import TaskDriftMultiTaskDRQN

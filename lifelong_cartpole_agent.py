@@ -306,7 +306,7 @@ if __name__ == '__main__':
     print("will start run ",args.run, " with experiment_type ",args.experiment_type, "and ",args.policies, " policies of ", args.method)
     # args.experiment_type="lifelong"
     # args.VISUAL=False
-    # args.method="SelectiveDRQN"
+    # args.method="SelectiveFifoDRQN"
     # args.policies=1
     # args.run=0
     # args.filename="/home/david/LifelongRL/"

@@ -195,15 +195,17 @@ class ReservoirSamplingMemory:
         return len(self.buffer) >= self.buffer_size
 
     def _add(self,experience, term):
-        if self.full(): # remove lowest-ranked entry index
-            minimum=float("inf")
-            for i in range(self.final_index()):
-                experience,r , term = self.buffer[i]
-                if r < minimum:
-                    minimum=r
-                    min_index=i
+        if self.full(): # remove lowest-ranked entries # remove many at a time to ensure efficiency
+            temp_buffer = sorted(self.buffer[0:self.final_index()], key=lambda item: item[1])
+            self.buffer = temp_buffer[self.buffer_size//100:] + self.buffer[self.final_index():] # remove 1% lowest data
+            # minimum=float("inf")
+            # for i in range(self.final_index()):
+            #     experience,r , term = self.buffer[i]
+            #     if r < minimum:
+            #         minimum=r
+            #         min_index=i
             #print("removing index ",min_index, " with value ", self.buffer[min_index])
-            del self.buffer[min_index]
+            #del self.buffer[min_index]
             #self.max_sp=max(self.sp,self.max_sp)
         r = np.random.normal()
 
@@ -920,7 +922,7 @@ def reservoirsampling_test():
 def reservoirsamplingplusFIFO_test():
     mem = ReservoirSamplingMemory(100,10)
     total_t = 0
-    for e in range(100):
+    for e in range(1000):
         episode_buffer=[]
         for t in range(50):
 
@@ -933,4 +935,4 @@ def reservoirsamplingplusFIFO_test():
 if __name__ == "__main__":
     #nonepisodic_buffer_test()
     #multigoal_buffer_test()
-    reservoirsamplingplusFIFO_test()
+    reservoirsampling_test()

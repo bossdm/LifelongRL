@@ -719,7 +719,7 @@ def main(arg_list):
 
 
     conservative=args.conservative if args.conservative is not None else True
-    methodname = args.method if args.method is not None else "MultiActorPPO2"
+    methodname = args.method if args.method is not None else "SelectiveDRQN"
 
     if args.experiment_type is None:
         args.experiment_type = "lifelongx18t"
@@ -888,7 +888,7 @@ def main(arg_list):
         dump_incremental("randomBaseLinesCartpole"+args.method+".pkl",randomBaselines)
         exit(0)
 
-    pacmanparams['num_actors'] = 5
+    pacmanparams['num_actors'] = 1
 
 
     if environmentfile is not None:
