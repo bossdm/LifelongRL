@@ -249,6 +249,62 @@ class ReservoirSamplingMemory:
         sampledTraces = np.array(sampledTraces,dtype=object)
         return sampledTraces ,terminals
 
+
+class EpisodicReservoirSamplingMemory:
+    """
+    give a different key depending on random number, match the global distribution
+    """
+    def __init__(self, buffer_size=400000, FIFO=0, episode_length=1000):
+        """
+        :param buffer_size: how many experiences
+        """
+        self.buffer_size = buffer_size
+        self.buffer= []
+        self.FIFO = FIFO // episode_length  # how many episodes of the latest data to preserve regardless of priority
+        self.sp=0
+    def final_index(self):
+        """
+        final index of non-FIFO part
+        """
+        return len(self.buffer) - self.FIFO
+
+    def full(self):
+        return self.sp >= self.buffer_size
+
+    def add(self, episode):
+        """
+        :param episode: episode
+        :return:
+        """
+        if self.full(): # remove lowest-ranked entries # remove many at a time to ensure efficiency
+            temp_buffer = sorted(self.buffer[0:self.final_index()], key=lambda item: item[1])
+            # calculate how much experiences removed
+            for i in range(len(self.buffer)//100):
+                self.sp-=len(temp_buffer[i][0])
+            self.buffer = temp_buffer[len(self.buffer)//100:] + self.buffer[self.final_index():] # remove 1% lowest data
+
+        r = np.random.normal()
+
+        entry = (episode, r)
+        # add the new entry on its index
+        self.buffer.append(entry)
+        self.sp+=len(episode)
+
+    def sample(self, batch_size, trace_length):
+        sampled_episodes = np.random.choice(len(self.buffer), batch_size)
+        sampledTraces = [None for i in range(batch_size)]
+        terminals=[False for i in range(batch_size)]
+        for i in range(batch_size):
+            #print(len(episode))
+            episode, _r = self.buffer[sampled_episodes[i]]
+            point = np.random.randint(0, len(episode) + 1 - trace_length)
+            sampledTraces[i]=episode[point:point + trace_length]
+            if point +trace_length == len(episode):
+                 terminals[i]=True
+
+        sampledTraces = np.array(sampledTraces,dtype=object)
+        return sampledTraces ,terminals
+
 class MultiGoalNonEpisodicReplayMemory(NonEpisodicReplayMemory):
     def __init__(self,buffer_size):
         """
@@ -401,7 +457,10 @@ class DoubleDRQNAgent:
         else:
             self.memory = NonEpisodicReplayMemory()
     def init_selective_memory(self,FIFO):
-        self.memory = ReservoirSamplingMemory(FIFO=FIFO)
+        if self.trace_length > 1:
+            self.memory = EpisodicReservoirSamplingMemory(FIFO=FIFO,episode_length=1000)
+        else:
+            self.memory = ReservoirSamplingMemory(FIFO=FIFO)
     def update_target_model(self):
         """
         After some time interval update the target model to be same with model
@@ -931,8 +990,18 @@ def reservoirsamplingplusFIFO_test():
         mem.add(episode_buffer)
     #samples = mem.sample(100,None)
     print("")
-
+def episodicreservoirsampling_test():
+    mem = EpisodicReservoirSamplingMemory(10000,100,50)
+    total_t = 0
+    for e in range(1000):
+        episode_buffer = []
+        for t in range(50):
+            episode_buffer.append(total_t)
+            total_t += 1
+        mem.add(episode_buffer)
+    samples = mem.sample(100,5)
+    print("")
 if __name__ == "__main__":
     #nonepisodic_buffer_test()
     #multigoal_buffer_test()
-    reservoirsampling_test()
+    episodicreservoirsampling_test()
