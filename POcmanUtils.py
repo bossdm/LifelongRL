@@ -862,7 +862,7 @@ class POcman(NavigationEnvironment):
             if self.t > 0:
                 #self.currentCount = self.maxCount + 1
                 self.agent.learner.setTerminalObservation(self.agent, self)  # set the final observation
-                print("added terminal obs")
+                #print("added terminal obs")
         self.agent.learner.reset()
         self.currentTask.start_time=self.t
 
