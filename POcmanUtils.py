@@ -229,8 +229,22 @@ def get_method(methodname,externalActions,filename,num_PLAs,pacmanparams,inputs,
         method.agent.init_selective_memory(FIFO=50000)
     elif methodname == "EWC":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
-        settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
-        method = EWC_Learner(1600000,settings)
+        settings = get_DRQN_configs(inputs, externalActions, filename, episodic)
+        settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
+        settings["buffer_size"] = 400000 // 18  # distribute equally among tasks
+        method = EWC_Learner(5*10**6, settings)
+    elif methodname == "EWC_half":
+        from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
+        settings = get_DRQN_configs(inputs, externalActions, filename, episodic)
+        settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
+        settings["buffer_size"] = 400000 // 18  # distribute equally among tasks
+        method = EWC_Learner(2.5*10**6, settings)
+    elif methodname == "EWC_fifth":
+        from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
+        settings = get_DRQN_configs(inputs, externalActions, filename, episodic)
+        settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
+        settings["buffer_size"] = 400000 // 18  # distribute equally among tasks
+        method = EWC_Learner(1*10**6 // 5, settings)
     elif methodname == "TaskDriftInit_DRQN":
         from Lifelong.HomeostaticPols import HomeostaticPol
         from Lifelong.TaskDriftDRQN import TaskDriftMultiTaskDRQN

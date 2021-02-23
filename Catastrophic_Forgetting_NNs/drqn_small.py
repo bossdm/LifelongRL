@@ -350,7 +350,7 @@ class MultiGoalNonEpisodicReplayMemory(NonEpisodicReplayMemory):
 
         return gs
 class MultiGoalEpisodicReplayMemory(EpisodicReplayMemory):
-    def __init__(self,buffer_size):
+    def __init__(self,buffer_size,stop_replay=float("inf")):
         """
 
         :param buffer_size:  equal to the number of experiences
@@ -359,6 +359,7 @@ class MultiGoalEpisodicReplayMemory(EpisodicReplayMemory):
         self.buffers={}
         self.ts = {}
         self.replay_ready_factor = 27 # the number of tasks
+        self.stop_replay=stop_replay
     def add_goal(self,goal):
         if goal not in self.buffers:
             self.buffers[goal]=EpisodicReplayMemory(self.buffer_size)
@@ -375,12 +376,13 @@ class MultiGoalEpisodicReplayMemory(EpisodicReplayMemory):
         self.ts[self.current_goal]+=len(episode_experience)
 
     @overrides
-    def sample(self, batch_size, trace_length):
-        samplegoals=np.random.choice(len(self.replay_goals),batch_size)
+    def sample(self, batch_size, trace_length,goals):
+        if not goals: return [], []
+        samplegoals=np.random.choice(len(goals),batch_size)
         data = [[[[] for j in range(4)] for k in range(1) ] for i in range(len(samplegoals))]
         terminals = []
         for i, g in enumerate(samplegoals):
-            sample, terms=self.buffers[self.replay_goals[g]].sample(1,trace_length)
+            sample, terms=self.buffers[goals[g]].sample(1,trace_length)
             s,a,r,ss = sample[0][0]
             data[i][0][0] = s
             data[i][0][1] = a
@@ -395,12 +397,22 @@ class MultiGoalEpisodicReplayMemory(EpisodicReplayMemory):
 
     def replay_ready(self, goal, start, batch_size):
         t=self.ts[goal]
+        return t >= start and t >= batch_size and t < self.stop_replay
+    def replay_ready_nostop(self, goal, start, batch_size):
+        t=self.ts[goal]
         return t >= start and t >= batch_size
 
     def get_replay_ready_goals(self, start, batch_size):
         gs = []
         for goal in self.buffers:
             if self.replay_ready(goal, start/self.replay_ready_factor, batch_size):
+                gs.append(goal)
+
+        return gs
+    def get_replay_ready_nostop_goals(self, start, batch_size):
+        gs = []
+        for goal in self.buffers:
+            if self.replay_ready_nostop(goal, start/self.replay_ready_factor, batch_size):
                 gs.append(goal)
 
         return gs
@@ -451,11 +463,11 @@ class DoubleDRQNAgent:
         self.target_model = None
 
 
-    def init_memory(self,episodic):
+    def init_memory(self,episodic,buffer_size=400000):
         if episodic:
-            self.memory =EpisodicReplayMemory()
+            self.memory =EpisodicReplayMemory(buffer_size=buffer_size)
         else:
-            self.memory = NonEpisodicReplayMemory()
+            self.memory = NonEpisodicReplayMemory(buffer_size=buffer_size)
     def init_selective_memory(self,FIFO):
         if self.trace_length > 1:
             self.memory = EpisodicReservoirSamplingMemory(FIFO=FIFO,episode_length=1000)
@@ -752,7 +764,18 @@ class MultiTaskDoubleDRQNAgent(DoubleDRQNAgent):
         # Do the training
         self.memory.replay_goals=self.memory.get_replay_ready_goals(self.replay_start_size,self.batch_size+self.trace_length)
         if not self.memory.replay_goals: return None,None
-        return DoubleDRQNAgent._train_replay(self,batch_size)
+        sample_traces, terminals = self.memory.sample(batch_size, self.trace_length, self.memory.replay_goals)  # 32x8x4
+
+        update_input,target=self.get_xy(batch_size,sample_traces,terminals)
+        loss = self.model.train_on_batch(update_input, target)
+        # try:
+        #     loss = self.model.train_on_batch(update_input, target)
+        # except Exception as e:
+        #     print(update_input)
+        #     print(target)
+        #     print(batch_size)
+        #     print(e.message)
+        return float(np.max(target[-1, -1])), float(loss)
 
     def new_task(self,feature):
         """
