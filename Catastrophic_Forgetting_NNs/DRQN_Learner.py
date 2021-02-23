@@ -14,6 +14,8 @@ from Catastrophic_Forgetting_NNs.CustomNetworks import CustomNetworks
 
 from keras.models import clone_model
 
+from Catastrophic_Forgetting_NNs.EWC import *
+
 def clone_kerasmodel(model):
     copy_m = clone_model(model)
     copy_m.set_weights(model.get_weights())
@@ -376,6 +378,42 @@ class DRQN_Learner(CompleteLearner):
         self.setAction()
         agent.learner.chosenAction = self.chosenAction # cf. task drift (Homeostatic Pols)
         self.performAction(agent,environment)
+
+
+class EWC_Learner(DRQN_Learner):
+    def __init__(self,timesteps,DRQN_opts):
+        DRQN_Learner.__init__(self,**DRQN_opts)
+        self.ewc = EWC_objective(lbda_task={},
+                                 learning_rate=0.10,
+                                 batch_size=None,
+                                 model=self.agent.model,
+                                 n_in=None, n_out=len(self.actions))
+        self.timesteps=timesteps
+        self.previous_t = 0
+
+    @overrides
+    def new_task(self,feature):
+        """
+        when new feature arrives, need to switch to task-specific (do nothing except when experience matching)
+        :param feature:
+        :return:
+        """
+        delta_t = self.total_t - self.previous_t
+        self.previous_t = self.total_t
+        self.ewc.end_task(delta_t,self.timesteps)
+        self.agent.new_task(feature)
+        self.ewc.start_task(feature)
+        if self.total_t >0:
+            batches=[]
+            for i in range(100):
+                samples,terminals = self.agent.memory.sample(self.agent.batch_size,self.agent.trace_length)
+                x,y=self.agent.get_xy(self.agent.batch_size,samples,terminals)
+                batches.append((x,y))
+            self.agent.model = self.ewc.compile_EWC(batches,self.agent.model)
+
+
+
+
 
 class ExplorationDRQN_Learner(DRQN_Learner):
     def __init__(self,recordingsfile,task_features,use_task_bias,use_task_gain,n_inputs,trace_length,actions,file,episodic,loss=None,

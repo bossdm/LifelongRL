@@ -551,12 +551,7 @@ class DoubleDRQNAgent:
         return val, target
 
 
-    # pick samples randomly from replay memory (with batch_size)
-    def _train_replay(self,batch_size):
-
-        #, terminals
-        sample_traces, terminals = self.memory.sample(batch_size, self.trace_length)  # 32x8x4
-
+    def get_xy(self,batch_size,sample_traces,terminals):
         # Shape (batch_size, trace_length, img_rows, img_cols, color_channels)
         update_input = np.zeros(((batch_size,) + self.state_size))  # 32x8x64x64x3
         target_update_input = np.zeros(((batch_size,) + self.state_size))
@@ -582,6 +577,14 @@ class DoubleDRQNAgent:
 
         # Only use the last trace for training
         target=self.compute_target(update_input,target_update_input,batch_size,action,reward,terminals)
+        return update_input,target
+    # pick samples randomly from replay memory (with batch_size)
+    def _train_replay(self,batch_size):
+
+        #, terminals
+        sample_traces, terminals = self.memory.sample(batch_size, self.trace_length)  # 32x8x4
+
+        update_input,target=self.get_xy(batch_size,sample_traces,terminals)
         loss = self.model.train_on_batch(update_input, target)
         # try:
         #     loss = self.model.train_on_batch(update_input, target)

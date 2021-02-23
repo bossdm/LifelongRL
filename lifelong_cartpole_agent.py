@@ -177,6 +177,10 @@ def select_learner(args,inputs,externalActions,filename,n_tasks,episodic=True):
         settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
         method = DRQN_Learner( **settings)
         method.agent.init_selective_memory(FIFO=50000)
+    elif args.method == "EWC":
+        from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
+        settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
+        method = EWC_Learner(500000,settings)
     elif args.method == "DRQN":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import DRQN_Learner
         settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
@@ -306,7 +310,7 @@ if __name__ == '__main__':
     print("will start run ",args.run, " with experiment_type ",args.experiment_type, "and ",args.policies, " policies of ", args.method)
     # args.experiment_type="lifelong"
     # args.VISUAL=False
-    # args.method="SelectiveFifoDRQN"
+    # args.method="EWC"
     # args.policies=1
     # args.run=0
     # args.filename="/home/david/LifelongRL/"
