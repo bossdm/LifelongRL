@@ -719,7 +719,7 @@ def main(arg_list):
 
 
     conservative=args.conservative if args.conservative is not None else True
-    methodname = args.method if args.method is not None else "SelectiveFifoDRQN"
+    methodname = args.method if args.method is not None else "EWC"
 
     if args.experiment_type is None:
         args.experiment_type = "lifelongx18t"

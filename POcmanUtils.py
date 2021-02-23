@@ -227,6 +227,10 @@ def get_method(methodname,externalActions,filename,num_PLAs,pacmanparams,inputs,
         settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
         method = DRQN_Learner( **settings)
         method.agent.init_selective_memory(FIFO=50000)
+    elif methodname == "EWC":
+        from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
+        settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
+        method = EWC_Learner(1500000,settings)
     elif methodname == "TaskDriftInit_DRQN":
         from Lifelong.HomeostaticPols import HomeostaticPol
         from Lifelong.TaskDriftDRQN import TaskDriftMultiTaskDRQN
@@ -1682,7 +1686,7 @@ def reward_fun_pocman(agent, environment):
     # check time up or no
     if environment.time_up():
         # if DEBUG_MODE:
-        print("final time of the elementary task at time %d" % (environment.t))
+        #print("final time of the elementary task at time %d" % (environment.t))
         environment.terminal=True
     if environment.currentTask.task_type == PacmanTaskType.MELTINGPOT:
         if environment.currentTask.task_feature[0]==1.:
