@@ -144,7 +144,7 @@ class EWC_objective(object):
             return
         if self.current_task is not None and self.current_task not in self.theta_star:
             self.task_t[self.current_task]+=delta_t
-            if self.task_t[self.current_task]  > time:
+            if self.task_t[self.current_task]  >= time:
                 self.update_thetastar(self.current_task)
 
 

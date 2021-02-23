@@ -230,7 +230,7 @@ def get_method(methodname,externalActions,filename,num_PLAs,pacmanparams,inputs,
     elif methodname == "EWC":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
         settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
-        method = EWC_Learner(1500000,settings)
+        method = EWC_Learner(1600000,settings)
     elif methodname == "TaskDriftInit_DRQN":
         from Lifelong.HomeostaticPols import HomeostaticPol
         from Lifelong.TaskDriftDRQN import TaskDriftMultiTaskDRQN

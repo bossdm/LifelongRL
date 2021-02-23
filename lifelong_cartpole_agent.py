@@ -180,7 +180,7 @@ def select_learner(args,inputs,externalActions,filename,n_tasks,episodic=True):
     elif args.method == "EWC":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
         settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
-        method = EWC_Learner(500000,settings)
+        method = EWC_Learner(480000,settings)
     elif args.method == "DRQN":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import DRQN_Learner
         settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
