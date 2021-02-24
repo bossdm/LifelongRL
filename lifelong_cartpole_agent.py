@@ -195,6 +195,24 @@ def select_learner(args,inputs,externalActions,filename,n_tasks,episodic=True):
         settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
         settings["buffer_size"] = 400000 // 27  # distribute equally among tasks
         method = EWC_Learner(FRAMES_PER_TASK//5,settings)
+    elif args.method == "EWC_mse":
+        from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
+        settings = get_DRQN_configs(inputs, externalActions, filename, episodic)
+        settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
+        settings["buffer_size"] = 400000 // 18  # distribute equally among tasks
+        method = EWC_Learner(10000, settings, loss="mse")
+    elif args.method == "EWC_half_mse":
+        from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
+        settings = get_DRQN_configs(inputs, externalActions, filename, episodic)
+        settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
+        settings["buffer_size"] = 400000 // 18  # distribute equally among tasks
+        method = EWC_Learner(FRAMES_PER_TASK//2, settings , loss="mse")
+    elif args.method == "EWC_fifth_mse":
+        from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
+        settings = get_DRQN_configs(inputs, externalActions, filename, episodic)
+        settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
+        settings["buffer_size"] = 400000 // 18  # distribute equally among tasks
+        method = EWC_Learner(FRAMES_PER_TASK//5, settings, loss="mse")
     elif args.method == "DRQN":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import DRQN_Learner
         settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
@@ -322,13 +340,13 @@ if __name__ == '__main__':
     parser.add_argument("-x", dest="experiment_type", type=str, default="single")  # single, lifelong_convergence , lifelong
     args = parser.parse_args()
     print("will start run ",args.run, " with experiment_type ",args.experiment_type, "and ",args.policies, " policies of ", args.method)
-    # args.experiment_type="lifelong"
-    # args.VISUAL=False
-    # args.method="EWC"
-    # args.policies=1
-    # args.run=0
-    # args.filename="/home/david/LifelongRL/"
-    # args.environment_file=False
+    args.experiment_type="lifelong"
+    args.VISUAL=False
+    args.method="EWC_mse"
+    args.policies=1
+    args.run=0
+    args.filename="/home/david/LifelongRL/"
+    args.environment_file=False
     filename=args.filename +args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
     walltime = 60*3600 #60*3600  # 60 hours by default
     if args.walltime:

@@ -381,7 +381,7 @@ class DRQN_Learner(CompleteLearner):
 
 
 class EWC_Learner(DRQN_Learner):
-    def __init__(self,timesteps,DRQN_opts):
+    def __init__(self,timesteps,DRQN_opts,loss="likelihood"):
         DRQN_Learner.__init__(self,**DRQN_opts)
         self.ewc = EWC_objective(lbda_task={},
                                  learning_rate=0.10,
@@ -390,6 +390,7 @@ class EWC_Learner(DRQN_Learner):
                                  n_in=None, n_out=len(self.actions))
         self.previous_t = 0
         self.agent.memory.stop_replay=timesteps
+        self.loss = loss
 
 
     @overrides
@@ -410,14 +411,14 @@ class EWC_Learner(DRQN_Learner):
         self.ewc.end_task(delta_t,self.agent.memory.stop_replay)
         self.agent.new_task(feature)
         self.ewc.start_task(feature)
-        if self.total_t >0:
-            batches=[]
+        batches = []
+        if self.total_t>0:
+
             for i in range(100):
-                samples,terminals = self.agent.memory.sample(self.agent.batch_size,self.agent.trace_length,all_tasks
-                                                             )
+                samples,terminals = self.agent.memory.sample(self.agent.batch_size,self.agent.trace_length,all_tasks)
                 x,y=self.agent.get_xy(self.agent.batch_size,samples,terminals)
                 batches.append((x,y))
-            self.agent.model = self.ewc.compile_EWC(batches,self.agent.model)
+        self.agent.model = self.ewc.compile_EWC(batches,self.agent.model,self.loss)
 
 
 

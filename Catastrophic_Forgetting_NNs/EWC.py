@@ -222,6 +222,16 @@ class EWC_objective(object):
             l= self.loss(y_true,y_pred) + self.previous_task_loss(theta)
             return l
         return ob
+    def objective_EWC_mse(self, theta):
+        def ob(y_true,y_pred):
+            #return self.loss(y_true,y_pred) +
+            if not self.theta_star:
+                return keras.losses.mse(y_true,y_pred)
+            # return self.previous_task_loss(self.model.output)
+            #self.loss(y_true, self.model.output) +
+            l= keras.losses.mse(y_true,y_pred) + self.previous_task_loss(theta)
+            return l
+        return ob
     def objective_EWC_predEval(self, theta,weight,previous_weights):
         def ob(y_true,y_pred):
             #return self.loss(y_true,y_pred) +
@@ -243,7 +253,7 @@ class EWC_objective(object):
         else:
             self.model.fit(x, y, batch_size=batch_size,epochs=epochs, verbose=verbose, validation_split=validation_split)
 
-    def compile_EWC(self,minibatches,model):
+    def compile_EWC(self,minibatches,model,loss_fun):
         # x and y are large number of random samples of inputs and outputs (100 minibatches)
         self.model = model
         self.theta=self.model.trainable_weights
@@ -251,20 +261,24 @@ class EWC_objective(object):
         print("previous Fs: %s"%(str(self.previous_Fs)))
         print("lambda's: %s"%(str(self.lbda_task)))
         print("current F: %s" % (str(self.current_task)))
-        x,y = minibatches[0] # ge the first minibatch to initialise
-        fisher_x = x
-        appended_y=[y]
-        self.compute_fisher_linear(fisher_x, self.theta)
-        for (x,y) in  minibatches[1:]:
-            #self.print_current_theta_and_thetastars()
+        if self.theta_star:  # if there is no theta_stars then no need to compute fisher; the loss without previoustaskloss will be computed
+            x,y = minibatches[0] # ge the first minibatch to initialise
             fisher_x = x
-            self.compute_fisher_linear(fisher_x,self.theta,first=False)
-            appended_y=np.append(appended_y,y)
-        for i in range(len(self.F_accum)):
-            self.F_accum[i]/=len(minibatches)
-        self.beta=np.std(y,axis=0)
+            appended_y=[y]
+            self.compute_fisher_linear(fisher_x, self.theta)
+            for (x,y) in  minibatches[1:]:
+                #self.print_current_theta_and_thetastars()
+                fisher_x = x
+                self.compute_fisher_linear(fisher_x,self.theta,first=False)
+                appended_y=np.append(appended_y,y)
+            for i in range(len(self.F_accum)):
+                self.F_accum[i]/=len(minibatches)
+            self.beta=np.std(y,axis=0)
         #print("will now compile EWC with Fisher=", self.F_accum)
-        loss=self.objective_EWC(self.theta)
+        if loss_fun=="mse":
+            loss=self.objective_EWC_mse(self.theta)
+        else:
+            loss=self.objective_EWC(self.theta)
         self.model.compile(loss=loss,optimizer=Adadelta(lr=self.learning_rate, rho=0.95,clipvalue=10.0)) # compile w
         return self.model
     def fit_EWC_classification(self,x,y,batch_size,epochs,verbose,validation_split,predEval):
