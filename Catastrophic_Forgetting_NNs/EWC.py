@@ -44,7 +44,7 @@ import numpy as np
 from Catastrophic_Forgetting_NNs.gradient_calcs import *
 from copy import deepcopy
 
-from tensorflow.keras.optimizers import Adam, Adadelta
+from keras.optimizers import Adadelta
 
 from scipy.stats import norm
 DEBUG_MODE=False

@@ -379,15 +379,19 @@ class MultiGoalEpisodicReplayMemory(EpisodicReplayMemory):
     def sample(self, batch_size, trace_length,goals):
         if not goals: return [], []
         samplegoals=np.random.choice(len(goals),batch_size)
-        data = [[[[] for j in range(4)] for k in range(1) ] for i in range(len(samplegoals))]
+
+        data = [[[[] for j in range(4)] for k in range(trace_length) ] for i in range(len(samplegoals))]
         terminals = []
         for i, g in enumerate(samplegoals):
             sample, terms=self.buffers[goals[g]].sample(1,trace_length)
-            s,a,r,ss = sample[0][0]
-            data[i][0][0] = s
-            data[i][0][1] = a
-            data[i][0][2] = r
-            data[i][0][3] = ss
+            if trace_length > 1:
+                data[i]=sample[0]
+            else:
+                s,a,r,ss = sample[0][0]
+                data[i][0][0] = s
+                data[i][0][1] = a
+                data[i][0][2] = r
+                data[i][0][3] = ss
             # data[0].append(s)
             # data[1].append(a)
             # data[2].append(r)

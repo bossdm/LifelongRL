@@ -645,17 +645,8 @@ def random_data():
 
 
 
-def get_filenames(methodname,filename_arg,experiment_type,num_pols,run,folder=None):
-    homedir=str(os.environ['HOME'])
-    if folder is None:
-        if 'db2c15' in homedir:
-            filename='/scratch/db2c15/'
-        elif 'dmb1m19' in homedir:
-            filename = '/scratch/dmb1m19/LifelongRL/'
-        else:
-            filename=str(os.environ['HOME']) + '/LifelongRL/'
-    else:
-        filename=folder+"/"
+def get_filenames(methodname,filename_arg,experiment_type,num_pols,run):
+    filename=''
     task_filename=''
     add_task_str=''
     if args.add_task is None:
