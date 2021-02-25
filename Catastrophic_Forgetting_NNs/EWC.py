@@ -45,7 +45,7 @@ import numpy as np
 from Catastrophic_Forgetting_NNs.gradient_calcs import *
 from copy import deepcopy
 
-from keras.optimizers import Adadelta
+from keras.optimizers import RMSprop
 
 from scipy.stats import norm
 DEBUG_MODE=False
@@ -104,7 +104,7 @@ class GaussianLikelihood(keras.layers.Layer):
 
 class EWC_objective(object):
     n = 10000
-    def __init__(self,lbda_task,learning_rate,batch_size,model,n_in, n_out,lbda=400.0,output_type=OutputType.linear,epochs=1,
+    def __init__(self,lbda_task,learning_rate,batch_size,n_in, n_out,lbda=400.0,output_type=OutputType.linear,epochs=1,
                  objective_type=ObjectiveType.EWC,occurrence_weights=None):
         """
 
@@ -119,9 +119,6 @@ class EWC_objective(object):
         self.batch_size=batch_size
         self.n_in = n_in
         self.n_out = n_out
-        self.model = model
-        self.theta = self.model.trainable_weights
-        self.F_accum = [None for l in self.theta]
         #self.gradient_funs = init_gradient_calcs(self.model,self.theta,self.n_out)
         self.task_t={}
 
@@ -301,17 +298,22 @@ class EWC_objective(object):
         self.model = model
         self.theta=self.model.trainable_weights
         self.F_accum = [None for l in self.theta]
-        print("previous Fs: %s"%(str(self.previous_Fs)))
-        print("lambda's: %s"%(str(self.lbda_task)))
+
+
+        if minibatches:
+            # compute beta for likelihood
+            x,y = minibatches[0]
+            appended_y = y
+            for (x, y) in minibatches[1:]:
+                appended_y = np.concatenate((appended_y, y), axis=0)
+            self.beta = np.std(appended_y, axis=0)/2
+        else:
+            self.beta = np.zeros(self.n_out) + 0.25
+
+        print("previous Fs: %s" % (str(self.previous_Fs)))
+        print("lambda's: %s" % (str(self.lbda_task)))
         print("current F: %s" % (str(self.current_task)))
-
-
-        # compute beta for likelihood
-        x,y = minibatches[0]
-        appended_y = y
-        for (x, y) in minibatches[1:]:
-            appended_y = np.concatenate((appended_y, y), axis=0)
-        self.beta = np.std(appended_y, axis=0)
+        print("beta=", self.beta)
         if self.theta_star:
             # if there is no theta_stars then no need to compute fisher
             x, y = minibatches[0]
@@ -332,7 +334,8 @@ class EWC_objective(object):
             #print("beta ", self.beta)
             #print("beta shape ", self.beta.shape)
             loss=self.objective_EWC()
-        self.model.compile(loss=loss,optimizer=Adadelta(lr=self.learning_rate, rho=0.95,clipvalue=10.0)) # compile w
+        self.model.compile(loss=loss, optimizer=RMSprop(0.001, rho=0.90,
+                                                                  clipvalue=10.0))  # compile with new information  # compile with new information) # compile w
         return self.model
     def fit_EWC_classification(self,x,y,batch_size,epochs,verbose,validation_split,predEval):
 

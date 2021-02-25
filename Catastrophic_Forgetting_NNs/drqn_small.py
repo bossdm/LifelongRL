@@ -409,14 +409,14 @@ class MultiGoalEpisodicReplayMemory(EpisodicReplayMemory):
     def get_replay_ready_goals(self, start, batch_size):
         gs = []
         for goal in self.buffers:
-            if self.replay_ready(goal, start/self.replay_ready_factor, batch_size):
+            if goal==self.current_goal and self.replay_ready(goal, start/self.replay_ready_factor, batch_size):
                 gs.append(goal)
 
         return gs
     def get_replay_ready_nostop_goals(self, start, batch_size):
         gs = []
         for goal in self.buffers:
-            if self.replay_ready_nostop(goal, start/self.replay_ready_factor, batch_size):
+            if goal==self.current_goal and self.replay_ready_nostop(goal, start/self.replay_ready_factor, batch_size):
                 gs.append(goal)
 
         return gs
@@ -779,6 +779,8 @@ class MultiTaskDoubleDRQNAgent(DoubleDRQNAgent):
         #     print(target)
         #     print(batch_size)
         #     print(e.message)
+        print("loss ", loss)
+        #print("target ", target)
         return float(np.max(target[-1, -1])), float(loss)
 
     def new_task(self,feature):

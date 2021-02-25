@@ -276,7 +276,7 @@ class CustomNetworks(object):
 
     @staticmethod
     def small_scale_drqn(input_shape, action_size, task_features,use_task_bias,use_task_gain, num_neurons=80,learning_rate=.10,
-                         recurrent=True):
+                         recurrent=True, nocompile=False):
 
         print("learning rate " +str(learning_rate))
         model = Sequential()
@@ -296,6 +296,7 @@ class CustomNetworks(object):
         # else:
         model.add(Dense(output_dim=action_size, activation='linear'))
 
+        if nocompile: return model
         #cf DRQN paper
         ada_delta=Adadelta(lr=learning_rate, rho=0.95,clipvalue=10.0)
         model.compile(loss='mse',optimizer=ada_delta)

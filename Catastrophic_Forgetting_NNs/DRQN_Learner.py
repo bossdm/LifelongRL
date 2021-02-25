@@ -35,7 +35,8 @@ class DRQN_Learner(CompleteLearner):
 
     def __init__(self,task_features,use_task_bias,use_task_gain,n_inputs,trace_length,actions,file,episodic,loss=None,
                  target_model=False,num_neurons=80,epsilon_change=False,init_epsilon=None,final_epsilon=None,
-                 agent=None,intervals=[],num_features=0,learning_rate=0.10,recurrent=True,multigoal=False,buffer_size=None):
+                 agent=None,intervals=[],num_features=0,learning_rate=0.10,recurrent=True,
+                 multigoal=False,buffer_size=None,nocompile=False):
         CompleteLearner.__init__(self,actions,file,episodic)
         self.init_variables(epsilon_change)
 
@@ -45,7 +46,7 @@ class DRQN_Learner(CompleteLearner):
                                                task_features, use_task_bias, use_task_gain, num_neurons,
                                                    target_model,init_epsilon,final_epsilon,
                                                num_features,learning_rate,
-                                               recurrent,multigoal,buffer_size)
+                                               recurrent,multigoal,buffer_size,nocompile)
         self.state_size = DRQN_Learner.set_state_size(n_inputs, trace_length,recurrent)
         self.continue_experiment(intervals)
         # self.model_objective = EWC_objective(lbda_task,learning_rate,batch_size,model,n_in, n_out,lbda,output_type=OutputType.linear,epochs=200,
@@ -63,7 +64,8 @@ class DRQN_Learner(CompleteLearner):
                    learning_rate=0.10,
                    recurrent=True,
                    multigoal=False,
-                   buffer_size=None):
+                   buffer_size=None,
+                   nocompile=False):
         action_size = len(actions)
         state_size = DRQN_Learner.set_state_size(n_inputs, trace_length, recurrent)
         if multigoal:
@@ -103,13 +105,14 @@ class DRQN_Learner(CompleteLearner):
             agent.model = CustomNetworks.small_scale_drqn(input_shape, action_size, task_features,
                                                           use_task_bias, use_task_gain,num_neurons,
                                                           learning_rate=learning_rate,
-                                                          recurrent=recurrent)
+                                                          recurrent=recurrent,nocompile=nocompile)
             if target_model :
                 agent.target_model = CustomNetworks.small_scale_drqn(input_shape, action_size,
                                                                      task_features, use_task_bias,
                                                                      use_task_gain,num_neurons,
                                                                      learning_rate=learning_rate,
-                                                                     recurrent=recurrent)
+                                                                     recurrent=recurrent,
+                                                                     nocompile=nocompile)
         return agent
 
     def fill_eps(self,num_acts,maxindex,eps):
@@ -383,10 +386,10 @@ class DRQN_Learner(CompleteLearner):
 class EWC_Learner(DRQN_Learner):
     def __init__(self,timesteps,DRQN_opts,lbda=400,loss="likelihood"):
         DRQN_Learner.__init__(self,**DRQN_opts)
+
         self.ewc = EWC_objective(lbda_task={},
                                  learning_rate=0.10,
                                  batch_size=None,
-                                 model=self.agent.model,
                                  n_in=None, n_out=len(self.actions),lbda=lbda)
         self.previous_t = 0
         self.agent.memory.stop_replay=timesteps
@@ -414,13 +417,13 @@ class EWC_Learner(DRQN_Learner):
         self.agent.new_task(feature)
         self.ewc.start_task(feature)
         batches = []
-        if self.total_t>0:
-
+        if self.total_t > 0 :
             for i in range(self.fisher_samples):
                 samples,terminals = self.agent.memory.sample(self.fisher_batch,self.agent.trace_length,all_tasks)
                 x,y=self.agent.get_xy(self.agent.batch_size,samples,terminals)
                 batches.append((x,y))
-            self.agent.model = self.ewc.compile_EWC(batches,self.agent.model,self.loss)
+
+        self.agent.model = self.ewc.compile_EWC(batches,self.agent.model,self.loss)
 
 
 

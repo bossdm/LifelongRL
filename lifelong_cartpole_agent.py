@@ -23,6 +23,12 @@ def get_DRQN_configs(inputs,externalActions,filename,episodic):
     d=get_DRQN_agent_configs(inputs, externalActions, filename, episodic)
     d.update({'file': filename, 'loss': None})
     return d
+
+def get_EWC_configs(inputs,externalActions,filename,episodic):
+    settings = get_DRQN_configs(inputs, externalActions, filename, episodic)
+    settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
+    settings["buffer_size"] = 50000  # distribute equally among tasks
+    settings["nocompile"] = True
 def get_DRQN_agent_configs(inputs,externalActions,filename,episodic):
     if os.environ["tuning_lr"]:
         lr=float(os.environ["tuning_lr"])
@@ -179,57 +185,39 @@ def select_learner(args,inputs,externalActions,filename,n_tasks,episodic=True):
         method.agent.init_selective_memory(FIFO=50000)
     elif args.method == "EWC":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
-        settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
-        settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
-        settings["buffer_size"] = 400000 // 27  # distribute equally among tasks
+        settings =get_EWC_configs(inputs,externalActions,filename,episodic)
         method = EWC_Learner(FRAMES_PER_TASK,settings,lbda=100.)
     elif args.method == "EWC_half":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
-        settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
-        settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
-        settings["buffer_size"] = 400000 // 27  # distribute equally among tasks
+        settings =get_EWC_configs(inputs,externalActions,filename,episodic)
         method = EWC_Learner(FRAMES_PER_TASK//2,settings,lbda=100.)
     elif args.method == "EWC_fifth":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
-        settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
-        settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
-        settings["buffer_size"] = 400000 // 27  # distribute equally among tasks
+        settings =get_EWC_configs(inputs,externalActions,filename,episodic)
         method = EWC_Learner(FRAMES_PER_TASK//5,settings,lbda=100.)
     elif args.method == "EWC_lbda1":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
-        settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
-        settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
-        settings["buffer_size"] = 400000 // 27  # distribute equally among tasks
+        settings =get_EWC_configs(inputs,externalActions,filename,episodic)
         method = EWC_Learner(FRAMES_PER_TASK,settings,lbda=1.)
     elif args.method == "EWC_half_lbda1":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
-        settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
-        settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
-        settings["buffer_size"] = 400000 // 27  # distribute equally among tasks
+        settings =get_EWC_configs(inputs,externalActions,filename,episodic)
         method = EWC_Learner(FRAMES_PER_TASK//2,settings,lbda=1.)
     elif args.method == "EWC_fifth_lbda1":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
-        settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
-        settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
-        settings["buffer_size"] = 400000 // 27  # distribute equally among tasks
+        settings =get_EWC_configs(inputs,externalActions,filename,episodic)
         method = EWC_Learner(FRAMES_PER_TASK//5,settings,lbda=1.)
     elif args.method == "EWC_mse":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
-        settings = get_DRQN_configs(inputs, externalActions, filename, episodic)
-        settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
-        settings["buffer_size"] = 400000 // 18  # distribute equally among tasks
+        settings =get_EWC_configs(inputs,externalActions,filename,episodic)
         method = EWC_Learner(FRAMES_PER_TASK, settings, loss="mse")
     elif args.method == "EWC_half_mse":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
-        settings = get_DRQN_configs(inputs, externalActions, filename, episodic)
-        settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
-        settings["buffer_size"] = 400000 // 18  # distribute equally among tasks
+        settings = get_EWC_configs(inputs, externalActions, filename, episodic)
         method = EWC_Learner(FRAMES_PER_TASK//2, settings , loss="mse")
     elif args.method == "EWC_fifth_mse":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
-        settings = get_DRQN_configs(inputs, externalActions, filename, episodic)
-        settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
-        settings["buffer_size"] = 400000 // 18  # distribute equally among tasks
+        settings = get_EWC_configs(inputs, externalActions, filename, episodic)
         method = EWC_Learner(FRAMES_PER_TASK//5, settings, loss="mse")
     elif args.method == "DRQN":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import DRQN_Learner
@@ -358,13 +346,13 @@ if __name__ == '__main__':
     parser.add_argument("-x", dest="experiment_type", type=str, default="single")  # single, lifelong_convergence , lifelong
     args = parser.parse_args()
     print("will start run ",args.run, " with experiment_type ",args.experiment_type, "and ",args.policies, " policies of ", args.method)
-    # args.experiment_type="lifelong"
-    # args.VISUAL=False
-    # args.method="EWC_mse"
-    # args.policies=1
-    # args.run=0
-    # args.filename="/home/david/LifelongRL/"
-    # args.environment_file=False
+    args.experiment_type="lifelong"
+    args.VISUAL=False
+    args.method="EWC"
+    args.policies=1
+    args.run=0
+    args.filename="/home/david/LifelongRL/"
+    args.environment_file=False
     filename=args.filename +args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
     walltime = 60*3600 #60*3600  # 60 hours by default
     if args.walltime:
