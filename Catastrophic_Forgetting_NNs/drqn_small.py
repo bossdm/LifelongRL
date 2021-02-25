@@ -609,6 +609,8 @@ class DoubleDRQNAgent:
         #     print(target)
         #     print(batch_size)
         #     print(e.message)
+        print(loss)
+        print(target)
         return float(np.max(target[-1, -1])), float(loss)
 
     # load the saved model
@@ -780,7 +782,7 @@ class MultiTaskDoubleDRQNAgent(DoubleDRQNAgent):
         #     print(batch_size)
         #     print(e.message)
         print("loss ", loss)
-        #print("target ", target)
+
         return float(np.max(target[-1, -1])), float(loss)
 
     def new_task(self,feature):

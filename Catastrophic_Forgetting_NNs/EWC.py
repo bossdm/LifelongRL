@@ -88,7 +88,7 @@ class GaussianLikelihood(keras.layers.Layer):
         :param y_pred:
         :return:
         """
-        temp=K.log(self.gaussian(z=y_true,mean=y_pred))
+        temp=K.log(0.001+self.gaussian(z=y_true,mean=y_pred))   # + 0.001 to avoid nans
         return K.sum(temp,axis=[0,1])
 
     def call(self, inputs):
@@ -240,7 +240,7 @@ class EWC_objective(object):
         :param y_pred:
         :return:
         """
-        temp=K.log(self.gaussian(z=y_true,mean=y_pred,var=self.beta,z_dim=self.n_out))
+        temp=K.log(0.001 + self.gaussian(z=y_true,mean=y_pred,var=self.beta,z_dim=self.n_out))   # + 0.001 to avoid nans
         return K.sum(temp,axis=[0,1])
 
 
@@ -334,8 +334,8 @@ class EWC_objective(object):
             #print("beta ", self.beta)
             #print("beta shape ", self.beta.shape)
             loss=self.objective_EWC()
-        self.model.compile(loss=loss, optimizer=RMSprop(0.001, rho=0.90,
-                                                                  clipvalue=10.0))  # compile with new information  # compile with new information) # compile w
+        self.model.compile(loss=loss, optimizer=RMSprop(0.00025, rho=0.90,
+                                                                  clipvalue=50.0))  # compile with new information  # compile with new information) # compile w
         return self.model
     def fit_EWC_classification(self,x,y,batch_size,epochs,verbose,validation_split,predEval):
 
