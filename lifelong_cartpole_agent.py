@@ -182,19 +182,37 @@ def select_learner(args,inputs,externalActions,filename,n_tasks,episodic=True):
         settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
         settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
         settings["buffer_size"] = 400000 // 27  # distribute equally among tasks
-        method = EWC_Learner(10000,settings)
+        method = EWC_Learner(10000,settings,lbda=100.)
     elif args.method == "EWC_half":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
         settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
         settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
         settings["buffer_size"] = 400000 // 27  # distribute equally among tasks
-        method = EWC_Learner(FRAMES_PER_TASK//2,settings)
+        method = EWC_Learner(FRAMES_PER_TASK//2,settings,lbda=100.)
     elif args.method == "EWC_fifth":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
         settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
         settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
         settings["buffer_size"] = 400000 // 27  # distribute equally among tasks
-        method = EWC_Learner(FRAMES_PER_TASK//5,settings)
+        method = EWC_Learner(FRAMES_PER_TASK//5,settings,lbda=100.)
+    elif args.method == "EWC_lbda1":
+        from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
+        settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
+        settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
+        settings["buffer_size"] = 400000 // 27  # distribute equally among tasks
+        method = EWC_Learner(10000,settings,lbda=1.)
+    elif args.method == "EWC_half_lbda1":
+        from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
+        settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
+        settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
+        settings["buffer_size"] = 400000 // 27  # distribute equally among tasks
+        method = EWC_Learner(FRAMES_PER_TASK//2,settings,lbda=1.)
+    elif args.method == "EWC_fifth_lbda1":
+        from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
+        settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
+        settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
+        settings["buffer_size"] = 400000 // 27  # distribute equally among tasks
+        method = EWC_Learner(FRAMES_PER_TASK//5,settings,lbda=1.)
     elif args.method == "EWC_mse":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
         settings = get_DRQN_configs(inputs, externalActions, filename, episodic)

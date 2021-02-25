@@ -381,13 +381,13 @@ class DRQN_Learner(CompleteLearner):
 
 
 class EWC_Learner(DRQN_Learner):
-    def __init__(self,timesteps,DRQN_opts,loss="likelihood"):
+    def __init__(self,timesteps,DRQN_opts,lbda=400,loss="likelihood"):
         DRQN_Learner.__init__(self,**DRQN_opts)
         self.ewc = EWC_objective(lbda_task={},
                                  learning_rate=0.10,
                                  batch_size=None,
                                  model=self.agent.model,
-                                 n_in=None, n_out=len(self.actions))
+                                 n_in=None, n_out=len(self.actions),lbda=lbda)
         self.previous_t = 0
         self.agent.memory.stop_replay=timesteps
         self.loss = loss
