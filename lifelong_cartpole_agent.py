@@ -29,6 +29,7 @@ def get_EWC_configs(inputs,externalActions,filename,episodic):
     settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
     settings["buffer_size"] = 50000  # distribute equally among tasks
     settings["nocompile"] = True
+    return settings
 def get_DRQN_agent_configs(inputs,externalActions,filename,episodic):
     if os.environ["tuning_lr"]:
         lr=float(os.environ["tuning_lr"])
