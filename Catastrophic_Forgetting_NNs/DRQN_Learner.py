@@ -391,6 +391,8 @@ class EWC_Learner(DRQN_Learner):
         self.previous_t = 0
         self.agent.memory.stop_replay=timesteps
         self.loss = loss
+        self.fisher_samples=1 # number of minibatches for fisher matrix
+        self.fisher_batch = 40 * self.agent.batch_size
 
 
     @overrides
@@ -414,11 +416,11 @@ class EWC_Learner(DRQN_Learner):
         batches = []
         if self.total_t>0:
 
-            for i in range(100):
-                samples,terminals = self.agent.memory.sample(self.agent.batch_size,self.agent.trace_length,all_tasks)
+            for i in range(self.fisher_samples):
+                samples,terminals = self.agent.memory.sample(self.fisher_batch,self.agent.trace_length,all_tasks)
                 x,y=self.agent.get_xy(self.agent.batch_size,samples,terminals)
                 batches.append((x,y))
-        self.agent.model = self.ewc.compile_EWC(batches,self.agent.model,self.loss)
+            self.agent.model = self.ewc.compile_EWC(batches,self.agent.model,self.loss)
 
 
 

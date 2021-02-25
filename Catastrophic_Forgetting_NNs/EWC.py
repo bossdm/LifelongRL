@@ -37,7 +37,8 @@ import keras
 
 import tensorflow as tf
 
-
+from keras.models import Model, Sequential
+from keras.layers import Dense, InputLayer, Input
 
 import numpy as np
 
@@ -57,6 +58,46 @@ class ObjectiveType:
     likelihood=0
     EWC=1
     EWC_predEval=2
+
+
+class GaussianLikelihood(keras.layers.Layer):
+    def __init__(self, y_true, n_out, beta, **kwargs):
+        super(GaussianLikelihood, self).__init__(**kwargs)
+        self.beta = beta
+        self.n_out= n_out
+        self.y_true = y_true
+    def build(self, input_shape):
+        pass
+    def gaussian(self,z , mean):
+        """
+        multivariate gaussian each with the same variance but different mean
+        :param z:
+        :param mean:
+        :param var:
+        :param z_dim:
+        :return:
+        """
+        var = self.beta
+        z_dim = self.n_out
+        return 1/np.sqrt(var*(2*np.pi)**z_dim)*K.exp(-0.5*var**(-1)*K.square(z-mean))
+
+    def log_likelihood(self,y_true,y_pred):
+        """
+        toy function, code works like this
+        :param y_true:
+        :param y_pred:
+        :return:
+        """
+        temp=K.log(self.gaussian(z=y_true,mean=y_pred))
+        return K.sum(temp,axis=[0,1])
+
+    def call(self, inputs):
+
+        return self.log_likelihood(self.y_true,inputs)
+
+    def get_config(self):
+        # Implement get_config to enable serialization. This is optional.
+        pass
 
 
 
@@ -80,6 +121,7 @@ class EWC_objective(object):
         self.n_out = n_out
         self.model = model
         self.theta = self.model.trainable_weights
+        self.F_accum = [None for l in self.theta]
         #self.gradient_funs = init_gradient_calcs(self.model,self.theta,self.n_out)
         self.task_t={}
 
@@ -95,10 +137,7 @@ class EWC_objective(object):
         self.occurrence_weights=occurrence_weights
 
         self.objective_type = objective_type
-        if objective_type == ObjectiveType.likelihood:
-            self.y=self.model.output
-            ada_delta=Adadelta(lr=learning_rate, rho=0.95,clipvalue=10.0)
-            self.model.compile(loss=self.objective, optimizer=ada_delta)
+
 
     def print_current_theta_and_thetastars(self):
         for F in self.theta_star:
@@ -212,34 +251,34 @@ class EWC_objective(object):
         return  -self.log_likelihood(y_true,y_pred)
     def objective(self, y_true, y_pred):
         return self.loss(y_true,y_pred)  #+ self.previous_tasks_loss()
-    def objective_EWC(self, theta):
+    def objective_EWC(self):
         def ob(y_true,y_pred):
             #return self.loss(y_true,y_pred) +
             if not self.theta_star:
                 return self.loss(y_true,y_pred)
             # return self.previous_task_loss(self.model.output)
             #self.loss(y_true, self.model.output) +
-            l= self.loss(y_true,y_pred) + self.previous_task_loss(theta)
+            l= self.loss(y_true,y_pred) + self.previous_task_loss(self.theta)
             return l
         return ob
-    def objective_EWC_mse(self, theta):
+    def objective_EWC_mse(self):
         def ob(y_true,y_pred):
             #return self.loss(y_true,y_pred) +
             if not self.theta_star:
                 return keras.losses.mse(y_true,y_pred)
             # return self.previous_task_loss(self.model.output)
             #self.loss(y_true, self.model.output) +
-            l= keras.losses.mse(y_true,y_pred) + self.previous_task_loss(theta)
+            l= keras.losses.mse(y_true,y_pred) + self.previous_task_loss(self.theta)
             return l
         return ob
-    def objective_EWC_predEval(self, theta,weight,previous_weights):
+    def objective_EWC_predEval(self, weight,previous_weights):
         def ob(y_true,y_pred):
             #return self.loss(y_true,y_pred) +
             if not self.theta_star:
                 return self.loss(y_true,y_pred)
             # return self.previous_task_loss(self.model.output)
             #self.loss(y_true, self.model.output) +
-            l= weight*self.loss(y_true,y_pred) + self.previous_task_loss_predictiveEval(theta,previous_weights)
+            l= weight*self.loss(y_true,y_pred) + self.previous_task_loss_predictiveEval(self.theta,previous_weights)
             return l
         return ob
 
@@ -251,40 +290,53 @@ class EWC_objective(object):
         elif self.objective_type==ObjectiveType.EWC_predEval:
             self.fit_EWC_classification(x, y, batch_size, epochs, verbose, validation_split, predEval=True)
         else:
+            self.beta = np.std(y, axis=0)
+            self.model.compile(loss=self.objective, optimizer=Adadelta(lr=self.learning_rate, rho=0.95,
+                                                             clipvalue=10.0))  # compile with new information
+
             self.model.fit(x, y, batch_size=batch_size,epochs=epochs, verbose=verbose, validation_split=validation_split)
 
     def compile_EWC(self,minibatches,model,loss_fun):
         # x and y are large number of random samples of inputs and outputs (100 minibatches)
         self.model = model
         self.theta=self.model.trainable_weights
-
+        self.F_accum = [None for l in self.theta]
         print("previous Fs: %s"%(str(self.previous_Fs)))
         print("lambda's: %s"%(str(self.lbda_task)))
         print("current F: %s" % (str(self.current_task)))
-        if self.theta_star:  # if there is no theta_stars then no need to compute fisher; the loss without previoustaskloss will be computed
-            x,y = minibatches[0] # ge the first minibatch to initialise
-            fisher_x = x
-            appended_y=[y]
-            self.compute_fisher_linear(fisher_x, self.theta)
+
+
+        # compute beta for likelihood
+        x,y = minibatches[0]
+        appended_y = y
+        for (x, y) in minibatches[1:]:
+            appended_y = np.concatenate((appended_y, y), axis=0)
+        self.beta = np.std(appended_y, axis=0)
+        if self.theta_star:
+            # if there is no theta_stars then no need to compute fisher
+            x, y = minibatches[0]
+            self.compute_fisher_linear(x, y, self.theta)
             for (x,y) in  minibatches[1:]:
+                #print("y shape ", y.shape)
                 #self.print_current_theta_and_thetastars()
-                fisher_x = x
-                self.compute_fisher_linear(fisher_x,self.theta,first=False)
-                appended_y=np.append(appended_y,y)
+                self.compute_fisher_linear(x,y,self.theta,first=False)
             for i in range(len(self.F_accum)):
                 self.F_accum[i]/=len(minibatches)
-            self.beta=np.std(y,axis=0)
+        #print("theta shape ", self.theta)
+        #print("fisher shape ", self.F_accum)
         #print("will now compile EWC with Fisher=", self.F_accum)
         if loss_fun=="mse":
-            loss=self.objective_EWC_mse(self.theta)
+            loss=self.objective_EWC_mse()
         else:
-            loss=self.objective_EWC(self.theta)
+            #print("appended_y ", appended_y)
+            #print("beta ", self.beta)
+            #print("beta shape ", self.beta.shape)
+            loss=self.objective_EWC()
         self.model.compile(loss=loss,optimizer=Adadelta(lr=self.learning_rate, rho=0.95,clipvalue=10.0)) # compile w
         return self.model
     def fit_EWC_classification(self,x,y,batch_size,epochs,verbose,validation_split,predEval):
 
         self.batch_size=x.size
-        y_true=K.variable(y)
         self.theta=self.model.trainable_weights
         self.beta = np.std(y,axis=0)
         print("previous Fs: %s"%(str(self.previous_Fs)))
@@ -294,16 +346,18 @@ class EWC_objective(object):
         if validation_split>0:
             split_at = int(x.shape[0] * (1 - validation_split))
             fisher_x = x[split_at:]
+            fisher_y = y[split_at:]
         else:
             fisher_x = x
+            fisher_y = y
 
-        self.compute_fisher_linear(fisher_x,self.theta)
+        self.compute_fisher_linear(fisher_x,fisher_y,self.theta)
 
         if predEval:
 
-            loss=self.objective_EWC_predEval(self.theta,self.current_weight,self.previous_weights)
+            loss=self.objective_EWC_predEval(self.current_weight,self.previous_weights)
         else:
-            loss=self.objective_EWC(self.theta)
+            loss=self.objective_EWC()
         self.model.compile(loss=loss,optimizer=Adadelta(lr=self.learning_rate, rho=0.95,clipvalue=10.0)) # compile with new information
         self.model.fit(x,y,batch_size=batch_size,epochs=epochs,verbose=verbose,validation_split=validation_split)
 
@@ -360,7 +414,7 @@ class EWC_objective(object):
             if self.previous_Fs:
                 self.model.compile(loss=self.previous_taskloss_wrapper(self.theta),optimizer=keras.optimizers.RMSprop(lr=self.learning_rate, rho=0.9, epsilon=None, decay=0.0)) # compile with new information
                 x,y=generate_random_data(self.batch_size,fun1)
-                self.model.fit(x,y,epochs=5,verbose=1,validation_split=.10)
+                self.model.fit(x,y,epochs=5,verbose=0,validation_split=.10)
                 print("result is reasonable")
             # now back to original values
             for v in range(len(self.theta)):
@@ -406,30 +460,31 @@ class EWC_objective(object):
         return l
 
 
-    def compute_fisher_linear(self, xx, theta, first=True):
-
-
-            #gs = init_gradient_calcs2(self.ll,self.model, theta, self.n_out)
-
-            gs = init_gradient_calcs(self.model.input,self.model.output, theta, self.n_out)
-            sqd = square_deriv(theta, self.n_out, xx, gs)
+    def compute_fisher_linear(self, xx, yy, theta, first=True):
+        self.model.add(GaussianLikelihood(yy,self.n_out,self.beta))
+        for v in range(len(theta)):
+            f = K.function([self.model.inputs], K.square(K.gradients(self.model.outputs, theta[v])))
+            F = f(xx)
             if first:
-                self.F_accum = sqd
+                self.F_accum[v] = F
             else:
-                self.F_accum += sqd
-
-            if DEBUG_MODE:
-                print(self.F_accum)
-
-    def compute_fisher_direct(self, xx, yy, theta):
-
-        # gs = init_gradient_calcs2(self.ll,self.model, theta, self.n_out)
-        ll=self.log_likelihood(yy,self.model.output)
-        gs = init_gradient_calcs(self.model.input,ll,theta, self.n_out)
-        self.F_accum = square_deriv(theta, self.n_out, xx, gs)
+                self.F_accum[v] += F
 
         if DEBUG_MODE:
             print(self.F_accum)
+
+        self.model = Sequential(self.model.layers[:-1])
+        #print()
+
+    # def compute_fisher_direct(self, xx, yy, theta):
+    #
+    #     # gs = init_gradient_calcs2(self.ll,self.model, theta, self.n_out)
+    #     ll=self.log_likelihood(yy,self.model.output)
+    #     gs = init_gradient_calcs(self.model.input,ll,theta, self.n_out)
+    #     self.F_accum = square_deriv(theta, self.n_out, xx, gs)
+    #
+    #     if DEBUG_MODE:
+    #         print(self.F_accum)
 
     def check_fisher(self):
         """
@@ -439,8 +494,7 @@ class EWC_objective(object):
         raise NotImplementedError()
 
 def init_small_network(N,inputs,outputs):
-    from keras.models import Model, Sequential
-    from keras.layers import Dense, InputLayer
+
     from keras.initializers import glorot_normal,glorot_uniform
     n_out = 1
     model = Sequential()
@@ -456,9 +510,9 @@ def compile(network, objective,lr):
     ada_delta=Adadelta(lr=lr, rho=0.95,clipvalue=10.0)
     network.compile(optimizer=ada_delta,loss=objective)
 def fun1(x):
-    return np.array([(x[0] + x[1] + x[2])])
+    return np.array([(x[0])])
 def fun2(x):
-    return np.array([-(x[0]+x[1]+x[2])])
+    return np.array([x[0]+0.01*x[1]+0.01*x[2]])
 def fun3(x):
     """
 
@@ -467,7 +521,7 @@ def fun3(x):
     :return:
     """
 
-    return np.array([x[0]])
+    return np.array([x[0]+0.10*x[1]+0.10*x[2]])
 
 
 def fun4(x):
@@ -477,7 +531,7 @@ def fun4(x):
     if fisher correct, then this is much easier for EWC to learn multi-tasks
     :return:
     """
-    return np.array([x[1]**2+x[2]**2])
+    return np.array([1.05*x[0]+0.10*x[1]+0.10*x[2]])
 
 def fun5(x):
     """
@@ -486,7 +540,7 @@ def fun5(x):
     if fisher correct, then this is much easier for EWC to learn multi-tasks
     :return:
     """
-    return np.array([x[1]])
+    return np.array([0.95*x[0]+0.10*x[1]+0.10*x[2]])
 
 def generate_random_data(N,low,high,func):
     x = np.random.uniform(low=low,high=high,size=(N,3))
@@ -501,13 +555,13 @@ def trainTask(N,net,ewc,likelihood,func,low,high, compare=False):
     print("EWC network training")
     ewc.start_task(F)
 
-    ewc.train(x,y,batch_size=N,verbose=1,epochs=1000,validation_split=.00)
-    ewc.end_task()
+    ewc.train(x,y,batch_size=N,verbose=0,epochs=100,validation_split=.00)
+    ewc.end_task(delta_t=len(x))
     if compare:
         print("loglikelihood network training")
-        likelihood.train(x,y,batch_size=N,verbose=1,epochs=1000,validation_split=.00)
+        likelihood.train(x,y,batch_size=N,verbose=0,epochs=100,validation_split=.00)
         print("normal network training")
-        net.fit(x, y, batch_size=N, verbose=1, epochs=1000, validation_split=.00)
+        net.fit(x, y, batch_size=N, verbose=0, epochs=100, validation_split=.00)
 def range_mse(y,y_pred):
     return ((y - y_pred) ** 2).mean()
 def afterTask(N,net,ewc,likelihood,funcs,lows,highs, compare=False):
@@ -558,10 +612,10 @@ def toy_regression_problems():
     #
     lbda_task={}
     net_likelihood = init_small_network(N,n_in, n_out)
-    likelihood=EWC_objective(lbda_task,lr,N,net_likelihood,n_in,n_out, lbda=400.0,objective_type=ObjectiveType.likelihood)
+    likelihood=EWC_objective(lbda_task,lr,N,net_likelihood,n_in,n_out, lbda=1.0,objective_type=ObjectiveType.likelihood)
     net_EWC= init_small_network(N, n_in, n_out)
-    ewc=EWC_objective(lbda_task,lr,N,net_EWC,n_in,n_out, lbda=400.0,objective_type=ObjectiveType.EWC)
-    test_gaussian(ewc)
+    ewc=EWC_objective(lbda_task,lr,N,net_EWC,n_in,n_out, lbda=4.0,objective_type=ObjectiveType.EWC)
+    #test_gaussian(ewc)
 
     compare=True
 

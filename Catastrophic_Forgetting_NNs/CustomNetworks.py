@@ -299,7 +299,6 @@ class CustomNetworks(object):
         #cf DRQN paper
         ada_delta=Adadelta(lr=learning_rate, rho=0.95,clipvalue=10.0)
         model.compile(loss='mse',optimizer=ada_delta)
-
         return model
 
     @staticmethod

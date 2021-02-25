@@ -31,12 +31,12 @@ def square_deriv_plus_init(model,theta,n_out,xx):
     gs = init_gradient_calcs(model,theta, n_out)
     return square_deriv(theta,n_out,xx,gs)
 def square_deriv(theta,n_out,xx,gs):
-    ds = [np.zeros(theta[i].get_shape().as_list()) for i in range(len(theta))]
+    ds = []
     for o in range(n_out):
-        added = gs[o]([xx])
+        added = gs[o]([xx]) /xx.shape[0]  # need to divide as the sum of gradients is returned in tf.gradients
         for i in range(len(theta)):
-            ds[i] += np.square(added[i])
-    return [d/xx.shape[0] for d in ds]
+            ds = np.append(ds,np.square(added[i]))
+    return ds
 
 
 # tensor implementation: differentiable
