@@ -388,7 +388,7 @@ class EWC_Learner(DRQN_Learner):
         DRQN_Learner.__init__(self,**DRQN_opts)
 
         self.ewc = EWC_objective(lbda_task={},
-                                 learning_rate=os.environ["tuning_lr"],
+                                 learning_rate=float(os.environ["tuning_lr"]),
                                  batch_size=None,
                                  n_in=None, n_out=len(self.actions),lbda=lbda)
         self.previous_t = 0
