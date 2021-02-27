@@ -210,16 +210,28 @@ def select_learner(args,inputs,externalActions,filename,n_tasks,episodic=True):
         method = EWC_Learner(FRAMES_PER_TASK//5,settings,lbda=1.)
     elif args.method == "EWC_mse":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
-        settings =get_EWC_configs(inputs,externalActions,filename,episodic)
-        method = EWC_Learner(FRAMES_PER_TASK, settings, loss="mse")
-    elif args.method == "EWC_half_mse":
+        settings = get_EWC_configs(inputs, externalActions, filename, episodic)
+        method = EWC_Learner(FRAMES_PER_TASK, settings, lbda=100.,loss="mse")
+    elif args.method == "EWC_mse_half":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
         settings = get_EWC_configs(inputs, externalActions, filename, episodic)
-        method = EWC_Learner(FRAMES_PER_TASK//2, settings , loss="mse")
-    elif args.method == "EWC_fifth_mse":
-        from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
-        settings = get_EWC_configs(inputs, externalActions, filename, episodic)
-        method = EWC_Learner(FRAMES_PER_TASK//5, settings, loss="mse")
+        method = EWC_Learner(FRAMES_PER_TASK // 2, settings, lbda=100.,loss="mse")
+    # elif args.method == "EWC_fifth":
+    #     from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
+    #     settings = get_EWC_configs(inputs, externalActions, filename, episodic)
+    #     method = EWC_Learner(FRAMES_PER_TASK // 5, settings, lbda=100.)
+    # elif args.method == "EWC_lbda1":
+    #     from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
+    #     settings = get_EWC_configs(inputs, externalActions, filename, episodic)
+    #     method = EWC_Learner(FRAMES_PER_TASK, settings, lbda=1.)
+    # elif args.method == "EWC_half_lbda1":
+    #     from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
+    #     settings = get_EWC_configs(inputs, externalActions, filename, episodic)
+    #     method = EWC_Learner(FRAMES_PER_TASK // 2, settings, lbda=1.)
+    # elif args.method == "EWC_fifth_lbda1":
+    #     from Catastrophic_Forgetting_NNs.DRQN_Learner import EWC_Learner
+    #     settings = get_EWC_configs(inputs, externalActions, filename, episodic)
+    #     method = EWC_Learner(FRAMES_PER_TASK // 5, settings, lbda=1.)
     elif args.method == "DRQN":
         from Catastrophic_Forgetting_NNs.DRQN_Learner import DRQN_Learner
         settings=get_DRQN_configs(inputs,externalActions,filename,episodic)
@@ -351,7 +363,7 @@ if __name__ == '__main__':
     # args.VISUAL=False
     # args.method="EWC"
     # args.policies=1
-    # args.run=0
+    # args.run=1
     # args.filename="/home/david/LifelongRL/"
     # args.environment_file=False
     filename=args.filename +args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]

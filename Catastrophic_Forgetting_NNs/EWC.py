@@ -45,7 +45,7 @@ import numpy as np
 from Catastrophic_Forgetting_NNs.gradient_calcs import *
 from copy import deepcopy
 
-from keras.optimizers import RMSprop
+from keras.optimizers import RMSprop, Adadelta
 
 from scipy.stats import norm
 DEBUG_MODE=False
@@ -300,15 +300,7 @@ class EWC_objective(object):
         self.F_accum = [None for l in self.theta]
 
 
-        if minibatches:
-            # compute beta for likelihood
-            x,y = minibatches[0]
-            appended_y = y
-            for (x, y) in minibatches[1:]:
-                appended_y = np.concatenate((appended_y, y), axis=0)
-            self.beta = np.std(appended_y, axis=0)/2
-        else:
-            self.beta = np.zeros(self.n_out) + 0.25
+        self.beta = np.zeros(self.n_out) + 0.05
 
         print("previous Fs: %s" % (str(self.previous_Fs)))
         print("lambda's: %s" % (str(self.lbda_task)))
@@ -334,8 +326,7 @@ class EWC_objective(object):
             #print("beta ", self.beta)
             #print("beta shape ", self.beta.shape)
             loss=self.objective_EWC()
-        self.model.compile(loss=loss, optimizer=RMSprop(0.00025, rho=0.90,
-                                                                  clipvalue=50.0))  # compile with new information  # compile with new information) # compile w
+        self.model.compile(loss=loss, optimizer=RMSprop(self.learning_rate))  # compile with new information  # compile with new information) # compile w
         return self.model
     def fit_EWC_classification(self,x,y,batch_size,epochs,verbose,validation_split,predEval):
 
@@ -361,7 +352,7 @@ class EWC_objective(object):
             loss=self.objective_EWC_predEval(self.current_weight,self.previous_weights)
         else:
             loss=self.objective_EWC()
-        self.model.compile(loss=loss,optimizer=Adadelta(lr=self.learning_rate, rho=0.95,clipvalue=10.0)) # compile with new information
+        self.model.compile(loss=loss,optimizer=Adadelta(lr=self.learning_rate, rho=0.95,clipvalue=1.0)) # compile with new information
         self.model.fit(x,y,batch_size=batch_size,epochs=epochs,verbose=verbose,validation_split=validation_split)
 
     def prepare_previous_task_loss(self,y,theta):

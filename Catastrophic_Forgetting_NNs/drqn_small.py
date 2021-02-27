@@ -358,7 +358,7 @@ class MultiGoalEpisodicReplayMemory(EpisodicReplayMemory):
         self.buffer_size=buffer_size
         self.buffers={}
         self.ts = {}
-        self.replay_ready_factor = 27 # the number of tasks
+        #self.replay_ready_factor = 27 # the number of tasks
         self.stop_replay=stop_replay
     def add_goal(self,goal):
         if goal not in self.buffers:
@@ -409,16 +409,16 @@ class MultiGoalEpisodicReplayMemory(EpisodicReplayMemory):
     def get_replay_ready_goals(self, start, batch_size):
         gs = []
         for goal in self.buffers:
-            if goal==self.current_goal and self.replay_ready(goal, start/self.replay_ready_factor, batch_size):
+            if goal==self.current_goal and self.replay_ready(goal, start, batch_size):
                 gs.append(goal)
-
+                print("replay")
         return gs
     def get_replay_ready_nostop_goals(self, start, batch_size):
         gs = []
         for goal in self.buffers:
-            if goal==self.current_goal and self.replay_ready_nostop(goal, start/self.replay_ready_factor, batch_size):
+            if goal==self.current_goal and self.replay_ready_nostop(goal, start, batch_size):
                 gs.append(goal)
-
+                print("replay")
         return gs
 class DoubleDRQNAgent:
     q=None
@@ -755,7 +755,7 @@ class MultiTaskDoubleDRQNAgent(DoubleDRQNAgent):
         DoubleDRQNAgent.__init__(self,state_size, action_size, trace_length, batch_size,episodic,
                  double, init_epsilon, final_epsilon)
 
-
+        self.replay_start_size = 10000
     @overrides
     def init_memory(self,episodic):
         # Create replay memory
@@ -774,6 +774,7 @@ class MultiTaskDoubleDRQNAgent(DoubleDRQNAgent):
 
         update_input,target=self.get_xy(batch_size,sample_traces,terminals)
         loss = self.model.train_on_batch(update_input, target)
+
         # try:
         #     loss = self.model.train_on_batch(update_input, target)
         # except Exception as e:
@@ -781,7 +782,7 @@ class MultiTaskDoubleDRQNAgent(DoubleDRQNAgent):
         #     print(target)
         #     print(batch_size)
         #     print(e.message)
-        print("loss ", loss)
+        #print("loss ", loss)
 
         return float(np.max(target[-1, -1])), float(loss)
 
