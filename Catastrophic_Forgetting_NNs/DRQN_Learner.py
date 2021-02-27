@@ -397,7 +397,23 @@ class EWC_Learner(DRQN_Learner):
         self.fisher_samples=1 # number of minibatches for fisher matrix
         self.fisher_batch = 40 * self.agent.batch_size
 
+    @overrides
+    def atari_cycle(self, observation):
+        if self.total_t==self.agent.replay_start_size:  # compile once when there are no samples at start of taskblock
+            self.compile()
+        DRQN_Learner.atari_cycle(self,observation)
 
+    def compile(self):
+        all_tasks = self.agent.memory.get_replay_ready_nostop_goals(self.agent.replay_start_size,
+                                                                       self.agent.batch_size)
+        print("all tasks (including converged) ", all_tasks)
+        batches = []
+        for i in range(self.fisher_samples):
+            samples, terminals = self.agent.memory.sample(self.fisher_batch, self.agent.trace_length, all_tasks)
+            x, y = self.agent.get_xy(self.agent.batch_size, samples, terminals)
+            batches.append((x, y))
+
+        self.agent.model = self.ewc.compile_EWC(batches, self.agent.model, self.loss)
     @overrides
     def new_task(self,feature):
         """
@@ -407,23 +423,17 @@ class EWC_Learner(DRQN_Learner):
         :param feature:
         :return:
         """
-        all_tasks = self.agent.memory.get_replay_ready_nostop_goals(self.agent.replay_start_size, self.agent.batch_size)
+
         replay_goals = self.agent.memory.get_replay_ready_goals(self.agent.replay_start_size, self.agent.batch_size)
         print("replay ready tasks ", replay_goals)
-        print("all tasks (including converged) ", all_tasks)
         delta_t = self.total_t - self.previous_t
         self.previous_t = self.total_t
         self.ewc.end_task(delta_t,self.agent.memory.stop_replay)
         self.agent.new_task(feature)
         self.ewc.start_task(feature)
-        batches = []
-        if self.total_t > 0 :
-            for i in range(self.fisher_samples):
-                samples,terminals = self.agent.memory.sample(self.fisher_batch,self.agent.trace_length,all_tasks)
-                x,y=self.agent.get_xy(self.agent.batch_size,samples,terminals)
-                batches.append((x,y))
 
-        self.agent.model = self.ewc.compile_EWC(batches,self.agent.model,self.loss)
+        if self.total_t > 0 :
+            self.compile()
 
 
 

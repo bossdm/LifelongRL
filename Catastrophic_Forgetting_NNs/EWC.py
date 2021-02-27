@@ -299,8 +299,15 @@ class EWC_objective(object):
         self.theta=self.model.trainable_weights
         self.F_accum = [None for l in self.theta]
 
-
-        self.beta = np.zeros(self.n_out) + 0.05
+        if minibatches:
+            # compute beta for likelihood
+            x, y = minibatches[0]
+            appended_y = y
+            for (x, y) in minibatches[1:]:
+                appended_y = np.concatenate((appended_y, y), axis=0)
+            self.beta = np.var(appended_y, axis=0) / len(appended_y)
+        else:
+            self.beta = np.zeros(self.n_out) + 0.05
 
         print("previous Fs: %s" % (str(self.previous_Fs)))
         print("lambda's: %s" % (str(self.lbda_task)))

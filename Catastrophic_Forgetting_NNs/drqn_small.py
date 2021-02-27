@@ -411,14 +411,14 @@ class MultiGoalEpisodicReplayMemory(EpisodicReplayMemory):
         for goal in self.buffers:
             if goal==self.current_goal and self.replay_ready(goal, start, batch_size):
                 gs.append(goal)
-                print("replay")
+                #print("replay")
         return gs
     def get_replay_ready_nostop_goals(self, start, batch_size):
         gs = []
         for goal in self.buffers:
             if goal==self.current_goal and self.replay_ready_nostop(goal, start, batch_size):
                 gs.append(goal)
-                print("replay")
+                #print("replay")
         return gs
 class DoubleDRQNAgent:
     q=None
