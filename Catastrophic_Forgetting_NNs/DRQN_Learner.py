@@ -393,6 +393,7 @@ class EWC_Learner(DRQN_Learner):
                                  n_in=None, n_out=len(self.actions),lbda=lbda)
         self.previous_t = 0
         self.agent.memory.stop_replay=timesteps
+        self.agent.update_target_freq = 20000
         self.loss = loss
         self.fisher_samples=1 # number of minibatches for fisher matrix
         self.fisher_batch = 40 * self.agent.batch_size

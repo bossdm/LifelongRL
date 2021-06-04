@@ -88,7 +88,7 @@ class GaussianLikelihood(keras.layers.Layer):
         :param y_pred:
         :return:
         """
-        temp=K.log(0.001+self.gaussian(z=y_true,mean=y_pred))   # + 0.001 to avoid nans
+        temp=K.log(1e-10+self.gaussian(z=y_true,mean=y_pred))   # + 0.001 to avoid nans
         return K.sum(temp,axis=[0,1])
 
     def call(self, inputs):
@@ -240,7 +240,7 @@ class EWC_objective(object):
         :param y_pred:
         :return:
         """
-        temp=K.log(0.001 + self.gaussian(z=y_true,mean=y_pred,var=self.beta,z_dim=self.n_out))   # + 0.001 to avoid nans
+        temp=K.log(1e-10 + self.gaussian(z=y_true,mean=y_pred,var=self.beta,z_dim=self.n_out))   # + 0.001 to avoid nans
         return K.sum(temp,axis=[0,1])
 
 
@@ -288,12 +288,14 @@ class EWC_objective(object):
             self.fit_EWC_classification(x, y, batch_size, epochs, verbose, validation_split, predEval=True)
         else:
             self.beta = np.std(y, axis=0)
-            self.model.compile(loss=self.objective, optimizer=Adadelta(lr=self.learning_rate, rho=0.95,
-                                                             clipvalue=10.0))  # compile with new information
+            self.model.compile(loss=self.objective, optimizer=tf.keras.optimizers.SGD(learning_rate=self.learning_rate, momentum=0.9))  # compile with new information
 
             self.model.fit(x, y, batch_size=batch_size,epochs=epochs, verbose=verbose, validation_split=validation_split)
 
     def compile_EWC(self,minibatches,model,loss_fun):
+        """
+        minibatches is a dict, with minibatches[F] = minibatch for task F
+        """
         # x and y are large number of random samples of inputs and outputs (100 minibatches)
         self.model = model
         self.theta=self.model.trainable_weights
@@ -305,7 +307,7 @@ class EWC_objective(object):
             appended_y = y
             for (x, y) in minibatches[1:]:
                 appended_y = np.concatenate((appended_y, y), axis=0)
-            self.beta = np.var(appended_y, axis=0) / len(appended_y)
+            self.beta = np.var(appended_y, axis=0)/len(appended_y)
         else:
             self.beta = np.zeros(self.n_out) + 0.05
 
@@ -333,7 +335,7 @@ class EWC_objective(object):
             #print("beta ", self.beta)
             #print("beta shape ", self.beta.shape)
             loss=self.objective_EWC()
-        self.model.compile(loss=loss, optimizer=RMSprop(self.learning_rate))  # compile with new information  # compile with new information) # compile w
+        self.model.compile(loss=loss, optimizer=Adadelta(lr=self.learning_rate, rho=0.95,clipvalue=1,clipnorm=50.)) # RMSprop(learning_rate=self.learning_rate,rho=0.95,clipvalue=1.0,clipnorm=50.))  # compile with new information  # compile with new information) # compile w
         return self.model
     def fit_EWC_classification(self,x,y,batch_size,epochs,verbose,validation_split,predEval):
 
@@ -359,7 +361,7 @@ class EWC_objective(object):
             loss=self.objective_EWC_predEval(self.current_weight,self.previous_weights)
         else:
             loss=self.objective_EWC()
-        self.model.compile(loss=loss,optimizer=Adadelta(lr=self.learning_rate, rho=0.95,clipvalue=1.0)) # compile with new information
+        self.model.compile(loss=loss,optimizer=Adadelta(lr=self.learning_rate, rho=0.95,clipvalue=1.0,clipnorm=50.)) # compile with new information
         self.model.fit(x,y,batch_size=batch_size,epochs=epochs,verbose=verbose,validation_split=validation_split)
 
     def prepare_previous_task_loss(self,y,theta):

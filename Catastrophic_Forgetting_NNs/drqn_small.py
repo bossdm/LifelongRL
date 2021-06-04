@@ -355,7 +355,7 @@ class MultiGoalEpisodicReplayMemory(EpisodicReplayMemory):
 
         :param buffer_size:  equal to the number of experiences
         """
-        self.buffer_size=buffer_size
+        self.buffer_size=400000
         self.buffers={}
         self.ts = {}
         #self.replay_ready_factor = 27 # the number of tasks
@@ -599,7 +599,6 @@ class DoubleDRQNAgent:
 
         #, terminals
         sample_traces, terminals = self.memory.sample(batch_size, self.trace_length)  # 32x8x4
-
         update_input,target=self.get_xy(batch_size,sample_traces,terminals)
         loss = self.model.train_on_batch(update_input, target)
         # try:
@@ -609,8 +608,8 @@ class DoubleDRQNAgent:
         #     print(target)
         #     print(batch_size)
         #     print(e.message)
-        print(loss)
-        print(target)
+        #print(loss)
+        #print(target)
         return float(np.max(target[-1, -1])), float(loss)
 
     # load the saved model

@@ -27,7 +27,7 @@ def get_DRQN_configs(inputs,externalActions,filename,episodic):
 def get_EWC_configs(inputs,externalActions,filename,episodic):
     settings = get_DRQN_configs(inputs, externalActions, filename, episodic)
     settings["multigoal"] = True  # "We also allowed the DQN agents to maintain separate short-term memory buffers for each inferred task."
-    settings["buffer_size"] = 50000  # distribute equally among tasks
+    settings["buffer_size"] = 400000  # distribute equally among tasks
     settings["nocompile"] = True
     return settings
 def get_DRQN_agent_configs(inputs,externalActions,filename,episodic):
@@ -131,7 +131,7 @@ def make_custom_environment(masscart,masspole,length):
     e.settings = "masscart="+str(e.masscart)+" masspole="+str(e.masspole)+" length="+str(e.length)
     return e
 
-def perform_episode(visual,env, agent, seed,total_t):
+def perform_episode(visual,env, agent, seed,total_t,terminal_file=[]):
     #print("starting environment", env, "with mc=",env.masscart," mp=", env.masspole, "e.length=",env.length)
     env.seed(seed)
     #print("seed ",seed)
@@ -148,12 +148,23 @@ def perform_episode(visual,env, agent, seed,total_t):
         agent.reward(r)
         if done or t==200:  # should terminate at t==200 as this defines success
             agent.set_term(ob)
+            if done and terminal_file:
+                x, x_dot, theta, theta_dot = env.state
+                if x < -env.x_threshold or x > env.x_threshold:
+                    for i in range(len(old_ob)):
+                        terminal_file[0].write("%.3f \t" % (old_ob[i]))
+                    terminal_file[0].write("%d \n" % (action))
+                elif theta < -env.theta_threshold_radians or theta > env.theta_threshold_radians:
+                    for i in range(len(old_ob)):
+                        terminal_file[1].write("%.3f \t" % (old_ob[i]))
+                    terminal_file[1].write("%d \n" % (action))
             break
         if visual:
             env.render()
         t+=1
         total_t+=1
         consumed_frames+=1
+        old_ob = ob
 
             # Note there's no env.render() here. But the environment still can open window and
             # render if asked by env.monitor: it calls env.render('rgb_array') to record video.
@@ -359,12 +370,12 @@ if __name__ == '__main__':
     parser.add_argument("-x", dest="experiment_type", type=str, default="single")  # single, lifelong_convergence , lifelong
     args = parser.parse_args()
     print("will start run ",args.run, " with experiment_type ",args.experiment_type, "and ",args.policies, " policies of ", args.method)
-    # args.experiment_type="lifelong"
+    args.experiment_type="randomBaseline"
     # args.VISUAL=False
-    # args.method="EWC"
-    # args.policies=1
-    # args.run=1
-    # args.filename="/home/david/LifelongRL/"
+    args.method="RandomLearner"
+    args.policies=1
+    args.run=1
+    args.filename="/home/david/LifelongRL/"
     # args.environment_file=False
     filename=args.filename +args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
     walltime = 60*3600 #60*3600  # 60 hours by default
@@ -412,11 +423,13 @@ if __name__ == '__main__':
         performance_diversities.append(None)
         dump_incremental(filename+"_outputdiversity_totalvar",(output_div,performance_diversities))
         exit(0)
-    if args.experiment_type == "randomBaseline":
+    elif args.experiment_type == "randomBaseline":
         iterations = 10
         randomBaselines={}
+        total_episodes=0
+        total_t=0
         for i in indices:
-
+            terminal_file=[open("terminal_x_file"+str(i)+".txt","w+"),open("terminal_theta_file"+str(i)+".txt","w+")]
             performances = []
             j = indices[i]
             env = envs[j]
@@ -431,7 +444,7 @@ if __name__ == '__main__':
                 agent.learner.new_task([j])
                 while agent.taskblock_t < taskblockend:
                     consumed_steps = perform_episode(args.VISUAL, env, agent, args.run * 100000 + agent.num_episodes,
-                                                     agent.total_t)
+                                                     agent.total_t,terminal_file)
                     agent.taskblock_t += consumed_steps
                     agent.total_t += consumed_steps  # need to add because primitive data types not passed by reference
                     agent.num_episodes += 1
@@ -439,10 +452,16 @@ if __name__ == '__main__':
                 print("performance = ", performance)
                 performances.append(performance)
                 agent.learner.end_task()
-
+                print("episodes ",agent.num_episodes)
+                print("time ", agent.total_t)
+                total_episodes+=agent.num_episodes
+                total_t+=agent.total_t
             randomBaselines[(j,)] = np.mean(performances)
+        print("total episodes ", total_episodes)
+        print("total time ", total_t)
         dump_incremental("randomBaseLinesCartpole"+args.method+".pkl",randomBaselines)
         exit(0)
+
     #print(agent.learner.__dict__)
 
     for i in range(agent.index,len(indices)):
