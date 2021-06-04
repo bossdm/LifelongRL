@@ -2,14 +2,14 @@
 
 Code related to the following works including and related to my PhD thesis on reinforcement learning in long-term/lifetime environments:
 
-    [1] Bossens, D. M. (2020). Reinforcement learning with limited prior knowledge in long-term environments. PhD Thesis (University of Southampton). Retrieved from http://eprints.soton.ac.uk/id/eprint/442596
-    [2] Bossens, D. M., Townsend, N. C., & Sobey, A. J. (2019). Learning to learn with active adaptive perception. Neural Networks, 115, 30–49. https://doi.org/10.1016/J.NEUNET.2019.03.006
-    [3] Bossens, D. M., & Sobey, A. J. (2021). Lifetime policy reuse and the importance of task capacity. ArXiv Preprint ArXiv:2106.01741, 1–27. Retrieved from http://arxiv.org/abs/2106.01741
+ - [1] Bossens, D. M. (2020). Reinforcement learning with limited prior knowledge in long-term environments. PhD Thesis (University of Southampton). Retrieved from http://eprints.soton.ac.uk/id/eprint/442596
+ -  [2] Bossens, D. M., Townsend, N. C., & Sobey, A. J. (2019). Learning to learn with active adaptive perception. Neural Networks, 115, 30–49. https://doi.org/10.1016/J.NEUNET.2019.03.006
+ -  [3] Bossens, D. M., & Sobey, A. J. (2021). Lifetime policy reuse and the importance of task capacity. ArXiv Preprint ArXiv:2106.01741, 1–27. Retrieved from http://arxiv.org/abs/2106.01741
 
 This includes:
-1. Active adaptive perception [1,2]: the "SSA_gradientQsequence" in POmaze.py (partially observable mazes)
-2. Lifetime policy reuse [1,3]: the TaskDrift_* methods in MultiExperiment.py (18-task POcman POMDP sequence) and lifelong_cartpole_agent.py (27-task Cartpole MDP sequence)
-3. Lifelong SSA [1]: "SingleSMP_DRQN_lifetimeTaskspecific" and "SingleSMP_DRQN_lifetimeTaskspecificRelative" in MultiExperiment.py (18-task POcman POMDP sequence)
+- Active adaptive perception [1,2]: the "SSA_gradientQsequence" in POmaze.py (partially observable mazes)
+- Lifetime policy reuse [1,3]: the TaskDrift_* methods in MultiExperiment.py (18-task POcman POMDP sequence) and lifelong_cartpole_agent.py (27-task Cartpole MDP sequence)
+- Lifelong SSA [1]: "SingleSMP_DRQN_lifetimeTaskspecific" and "SingleSMP_DRQN_lifetimeTaskspecificRelative" in MultiExperiment.py (18-task POcman POMDP sequence)
 
 
 
