@@ -2,8 +2,8 @@
 
 Code related to the following works including and related to my PhD thesis on reinforcement learning in long-term/lifetime environments:
 
- - [1] Bossens, D. M. (2020). Reinforcement learning with limited prior knowledge in long-term environments. PhD Thesis (University of Southampton). Retrieved from http://eprints.soton.ac.uk/id/eprint/442596
- -  [2] Bossens, D. M., Townsend, N. C., & Sobey, A. J. (2019). Learning to learn with active adaptive perception. Neural Networks, 115, 30–49. https://doi.org/10.1016/J.NEUNET.2019.03.006
+ - [1] Bossens, D. M. (2020). Reinforcement learning with limited prior knowledge in long-term environments. PhD Thesis (University of Southampton). Retrieved from http://eprints.soton.ac.uk/id/eprint/442596 
+ -  [2] Bossens, D. M., Townsend, N. C., & Sobey, A. J. (2019). Learning to learn with active adaptive perception. Neural Networks, 115, 30–49. https://doi.org/10.1016/J.NEUNET.2019.03.006 (for a video please refer to https://www.youtube.com/watch?v=xRh-ZXkUJ2Y)
  -  [3] Bossens, D. M., & Sobey, A. J. (2021). Lifetime policy reuse and the importance of task capacity. ArXiv Preprint ArXiv:2106.01741, 1–27. Retrieved from http://arxiv.org/abs/2106.01741
 
 This includes:
