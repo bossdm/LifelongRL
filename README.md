@@ -18,7 +18,7 @@ The original code was written in python 2.7 but has since been modified to work 
 
 -----------------------------------------------------------------------------------------
 
-In the main directory, the there are two main scripts which I used:
+In the main directory, there are three main scripts which are used and tested extensively:
 
 # POmaze.py, 
 
