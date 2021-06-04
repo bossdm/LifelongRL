@@ -55,11 +55,12 @@ For example, the command:
     python MultiExperiment.py -r 0 -m  TaskDrift_DRQN -P 4 -x lifelongx18t  -v True
 
 will run learning with multiple policies according to lifetime policy reuse, using 4 DRQN policies and adaptive policy selection, on the 0'th task sequence with 18 unique tasks. A variety of other methods can be found in POcmanUtils.py:
--"Unadaptive" prefix (instead of TaskDrift) means lifetime policy reuse without adaptive policy selection
--no prefix means a single-policy method
--"1-to-1" means the task-specific learner, where each policy is specialised on a specific task
--"Selective" means DRQN with selective experience replay (see Isele, D., & Cosgun, A. (2018). Selective experience replay for lifelong learning. 32nd AAAI Conference on Artificial Intelligence, AAAI 2018, 3302–3309. Retrieved from http://arxiv.org/abs/1802.10269)
--"EWC" is Elastic Weight Consolidation (Kirkpatrick, J., Pascanu, R., Rabinowitz, N., Veness, J., Desjardins, G., & Rusu, A. A. (2017). Overcoming catastrophic forgetting in neural networks. Proceedings of the National Academy of Sciences of the United States of America, 114(13), 3521–3526. https://doi.org/10.1073/pnas.1611835114 ). The implementation could use some further verification, so it is not recommended to use it at the moment.
+
+    -"Unadaptive" prefix (instead of TaskDrift) means lifetime policy reuse without adaptive policy selection
+    -no prefix means a single-policy method
+    -"1-to-1" means the task-specific learner, where each policy is specialised on a specific task
+    -"Selective" means DRQN with selective experience replay (see Isele, D., & Cosgun, A. (2018). Selective experience replay for lifelong learning. 32nd AAAI  Conference on Artificial Intelligence, AAAI 2018, 3302–3309. Retrieved from http://arxiv.org/abs/1802.10269)
+    -"EWC" is Elastic Weight Consolidation (Kirkpatrick, J., Pascanu, R., Rabinowitz, N., Veness, J., Desjardins, G., & Rusu, A. A. (2017). Overcoming catastrophic forgetting in neural networks. Proceedings of the National Academy of Sciences of the United States of America, 114(13), 3521–3526. https://doi.org/10.1073/pnas.1611835114 ). The implementation could use some further verification, so it is not recommended to use it at the moment.
 
 
 Although currently, there are tasks located in the Tasks directory, you can also generate your own tasks using any of the experiment types in{"create_lifelong_tasks","create_lifelongx_tasks","create_lifelongx_tasks_uniform","create_lifelongx_test_tasks"}. For example,
