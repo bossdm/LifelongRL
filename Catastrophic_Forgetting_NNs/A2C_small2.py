@@ -264,7 +264,7 @@ class PPO_Agent(A2CAgent):
         self.init_PPO(recurrent=recurrent)
     def init_PPO(self,filename=None,w=None,recurrent=True):
         self.ppo=Policy(self.state_size,self.action_size,neurons=80,learning_rate=self.learning_rate,
-                        clipping=0.10,epochs=self.epochs,c1=1.0,c2=self.beta,filename=filename,
+                        clipping=3.0,epochs=self.epochs,c1=1.0,c2=self.beta,filename=filename,
                         w=w,large_scale=self.large_scale,recurrent=recurrent)
 
 

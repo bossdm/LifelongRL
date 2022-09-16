@@ -11,12 +11,12 @@ from ExperimentUtils import dump_incremental, read_incremental
 import time
 
 
-TASK_BLOCK_SIZE =60000 # 300 episodes per task block
+TASK_BLOCK_SIZE=60000 # 300 episodes per task block
 FRAMES_PER_TASK=1500000 # total of at least 7500 episodes per task, to be divided among at most 14 policies
 # compare 5000 episodes for MultiExperiment with at most 9 policies
 # ---> 25 blocks per task, and total 675 blocks (compare 450 in MultiExperiment)
 NUM_BLOCKS=675
-
+#NUM_BLOCKS=3125 # 125/27*675
 
 
 def get_DRQN_configs(inputs,externalActions,filename,episodic):
@@ -77,21 +77,27 @@ def indices_convergence(run):
         environment_index[j] = (environment_index[j] + run) % 27  # increment tindex according to run
     assert len(np.unique(environment_index)) == 27 and len(environment_index) == 27
     return environment_index
-def indices_lifelong(run):
+def indices_lifelong(run,n_tasks=27):
     np.random.seed(0)  # only first sequence is random
     environment_index = [None for i in range(NUM_BLOCKS)]
     for j in range(NUM_BLOCKS):
-        environment_index[j] = np.random.randint(0, 27)  # generate random index
-        environment_index[j] = (environment_index[j] + run) % 27  # increment tindex according to run
+        environment_index[j] = np.random.randint(0, n_tasks)  # generate random index
+        environment_index[j] = (environment_index[j] + run) % n_tasks  # increment tindex according to run
     return environment_index
 
 def get_games(args):
         environments=[]
         game = ["CartPole-v1"]
 
-        masscarts=[0.5,1.0,2.0]
-        masspoles=[0.05,0.1,0.2]
-        lengths=[0.25,0.50,1.0]
+        if args.experiment_type == "lifelong125": # 125 tasks
+            masscarts = [0.5, 0.75, 1.0, 1.5, 2.0]
+            masspoles = [0.05, 0.075, 0.1, 0.15, 0.2]
+            lengths = [0.25, 0.375, 0.50, 0.75, 1.0]
+        else: #27 tasks
+            masscarts=[0.5,1.0,2.0]
+            masspoles=[0.05,0.1,0.2]
+            lengths=[0.25,0.50,1.0]
+
         for mc in masscarts:
             for mp in masspoles:
                 for l in lengths:
@@ -106,6 +112,11 @@ def get_games(args):
             np.random.seed(args.run)  # only first sequence is random
             taskblockend=FRAMES_PER_TASK
             return environments, indices, taskblockend
+        elif args.experiment_type.startswith("RAM_test"):
+            prefix="RAM_test"
+            n_tasks=int(args.experiment_type[len(prefix):])
+            indices = indices_lifelong(args.run,n_tasks=n_tasks)
+            return None, indices, None
         elif args.experiment_type == "randomBaseline":
             indices=range(27)
             # now set the correct random state
@@ -114,6 +125,12 @@ def get_games(args):
             return environments, indices, taskblockend
         elif args.experiment_type == "lifelong":
             indices = indices_lifelong(args.run)
+            # now set the correct random state
+            np.random.seed(args.run)  # only first sequence is random
+            taskblockend=TASK_BLOCK_SIZE
+            return environments, indices, taskblockend
+        elif args.experiment_type == "lifelong125":
+            indices = indices_lifelong(args.run,n_tasks=125)
             # now set the correct random state
             np.random.seed(args.run)  # only first sequence is random
             taskblockend=TASK_BLOCK_SIZE
@@ -370,18 +387,20 @@ if __name__ == '__main__':
     parser.add_argument("-x", dest="experiment_type", type=str, default="single")  # single, lifelong_convergence , lifelong
     args = parser.parse_args()
     print("will start run ",args.run, " with experiment_type ",args.experiment_type, "and ",args.policies, " policies of ", args.method)
-    args.experiment_type="randomBaseline"
+    #args.experiment_type="RAM_test1000"
     # args.VISUAL=False
-    args.method="RandomLearner"
-    args.policies=1
-    args.run=1
-    args.filename="/home/david/LifelongRL/"
+    #args.method="RandomLearner"
+    #args.policies=1
+    #args.run=1
+    #args.filename="/home/david/LifelongRL/"
     # args.environment_file=False
+    #filename=args.filename+args.experiment_type+str(args.run)
     filename=args.filename +args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
     walltime = 60*3600 #60*3600  # 60 hours by default
     if args.walltime:
         ftr = [3600, 60, 1]
         walltime = sum([a * b for a, b in zip(ftr, map(int, args.walltime.split(':')))])
+
 
 
 
@@ -400,17 +419,18 @@ if __name__ == '__main__':
     envs, indices, taskblockend = get_games(args)
     if args.environment_file:
         # just to get stopping time
-        interrupted=True
         agent = read_incremental(filename+"_agent") # load atari agent
         agent.learner.load(filename)   # load the learner
-    else:
-        interrupted=False
+	#gent.index+=1
+    elif envs is not None:
         inputs = envs[0].observation_space
         agent = LifelongCartpoleAgent(args,filename,len(envs))  # network has full action set, but only uses minimal for each task
         agent.total_t=0
         agent.num_episodes = 0
         agent.learner.printDevelopmentAtari(frames=0)
         agent.index = 0
+        agent.interrupted=False
+
     starttime = time.time()
 
     if args.experiment_type == "print_diversity":
@@ -461,8 +481,44 @@ if __name__ == '__main__':
         print("total time ", total_t)
         dump_incremental("randomBaseLinesCartpole"+args.method+".pkl",randomBaselines)
         exit(0)
+    elif args.experiment_type.startswith("RAM_test"):
+        # just do a dummy loop generating new policies
+        import sys
+        n_convergence=[1,2,4,10]
+        required_pols=200
+        acceptance_probability=0.05
+        for run in range(50):
+            args.run=run
+            envs, indices, taskblockend = get_games(args)
+            for n_conver in n_convergence:
+                print("start doing n_conver", n_conver)
+                writefile=open(args.filename +"RAM_test_run"+str(run)+"_n_conver"+str(n_conver)+"_acceptance"+ str(acceptance_probability)+".txt","w")
+                library = set([])
+                ignore= set([]) # indices that can be ignored because a similar policy in library
+                temporary = {}
+                for i in range(0,len(indices)):
+                    #new task block
+                    j = indices[i]
+                    writefile.write("%d \t %d \n" % (len(library), len(temporary)))
+                    if len(library) < required_pols and j not in library and j not in ignore:
+                        print(len(library))
+                        visitations=temporary.get(j,0)
+                        visitations += 1
+                        temporary[j]=visitations
+                        sys.stdout.flush()
+                        if visitations >=n_conver: #add to library and remove from temporary
+                            r=np.random.random()
+                            if r < acceptance_probability:
+                                library.add(j)
+                            else:
+                                ignore.add(j)
+                            del temporary[j]
 
-    #print(agent.learner.__dict__)
+                        else:
+                            temporary[j]=visitations
+
+
+    print("agent index ",agent.index)
 
     for i in range(agent.index,len(indices)):
         j=indices[i]
@@ -470,11 +526,10 @@ if __name__ == '__main__':
         agent.index=i
         print("starting cartpole environment")
         print("block i =", i, "environment ", j , "\t settings: ", env.settings)
-        if not interrupted:
+        if not agent.interrupted:
             agent.taskblock_t=0
             agent.learner.new_task([j])
-        # for item in env.__dict__.items():
-        #     print(item)
+        agent.interrupted=False     
         while agent.taskblock_t< taskblockend:
             #print("starting new episode at taskblock_t: ", agent.taskblock_t)
             consumed_steps=perform_episode(args.VISUAL, env, agent, args.run*100000+agent.num_episodes, agent.total_t)
@@ -484,7 +539,9 @@ if __name__ == '__main__':
             agent.learner.printDevelopmentAtari(frames=agent.total_t)
             walltime_consumed = time.time() - starttime
             if walltime_consumed >= 0.9*walltime:
-                break
+                agent.interrupted=True
+        if agent.interrupted:
+            break
         agent.learner.end_task()
 
     agent.learner.save(filename)
