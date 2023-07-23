@@ -4,16 +4,11 @@ from __future__ import print_function
 
 import numpy as np
 import scipy.signal
-
-import tensorflow.compat.v1 as tf
-
-import keras.backend as K
 from keras.models import load_model
 
-from Catastrophic_Forgetting_NNs.CustomNetworks import entropy_regularisation,entropy_bonus
+from Catastrophic_Forgetting_NNs.CustomNetworks import entropy_regularisation
 from Catastrophic_Forgetting_NNs.PPO_objective2 import Policy
 
-from overrides import overrides
 
 DEBUG_MODE=False
 

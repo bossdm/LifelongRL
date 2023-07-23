@@ -2,12 +2,10 @@
 from __future__ import print_function
 
 import random
-import bisect
 import numpy as np
 
-from keras.models import Sequential, load_model, Model
-from keras.layers import Convolution2D, Dense, Flatten, merge, MaxPooling2D, Input, AveragePooling2D, Lambda, merge, \
-    Activation, Embedding
+from keras.models import Sequential, load_model
+from keras.layers import  Dense
 from keras.layers.recurrent import LSTM
 from keras.optimizers import Adadelta
 from keras import backend as K
@@ -793,7 +791,7 @@ class MultiTaskDoubleDRQNAgent(DoubleDRQNAgent):
         """
         self.memory.add_goal(tuple(feature))
 def main():
-    import tensorflow.compat.v1 as tf
+    import tensorflow as tf
     # Avoid Tensorflow eats up GPU memory
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True

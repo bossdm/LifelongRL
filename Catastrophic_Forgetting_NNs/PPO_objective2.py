@@ -5,7 +5,7 @@ Written by Patrick Coady (pat-coady.github.io)
 """
 import numpy as np
 
-import tensorflow.compat.v1 as tf
+import tensorflow as tf
 
 import keras.backend as K
 
