@@ -320,13 +320,13 @@ class MultiGoalNonEpisodicReplayMemory(NonEpisodicReplayMemory):
             self.ts[goal] = 0
         self.current_goal=goal
     @overrides
-    def add(self, experience):
+    def add(self, episode_experience):
         """
 
         :param episode_experience: episode in case of Episodic, experience in case of NonEpisodic
         :return:
         """
-        self.buffers[self.current_goal].add(experience)
+        self.buffers[self.current_goal].add(episode_experience)
         self.ts[self.current_goal] += 1
 
     @overrides
@@ -375,7 +375,7 @@ class MultiGoalEpisodicReplayMemory(EpisodicReplayMemory):
         self.buffers[self.current_goal].add(episode_experience)
         self.ts[self.current_goal]+=len(episode_experience)
 
-    @overrides
+
     def sample(self, batch_size, trace_length,goals):
         if not goals: return [], []
         samplegoals=np.random.choice(len(goals),batch_size)
@@ -756,7 +756,7 @@ class MultiTaskDoubleDRQNAgent(DoubleDRQNAgent):
 
         self.replay_start_size = 10000
     @overrides
-    def init_memory(self,episodic):
+    def init_memory(self,episodic,buffer_size):
         # Create replay memory
         if episodic:
             self.memory = MultiGoalEpisodicReplayMemory(self.buffer_size)

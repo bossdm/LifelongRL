@@ -281,6 +281,24 @@ def select_learner(args,inputs,externalActions,filename,n_tasks,episodic=True):
         method = HomeostaticPol(episodic=episodic, actions=externalActions, filename=filename, pols=pols, weights=None,
                                 **homeostatic_params)
         method.set_tasks({(i,): 1. / float(n_tasks) for i in range(n_tasks)})
+    elif args.method == "TaskDrift_DRQN_UCB":
+        from Lifelong.HomeostaticPols import HomeostaticPol,ProbabilityRule
+        from Lifelong.TaskDriftDRQN import TaskDriftDRQN
+        from Configs.InstructionSetsMultiExp import homeostatic_params
+        # batch_size=32
+        num_pols = args.policies
+        pols = [None] * num_pols
+        for pol in range(num_pols):
+            task_features = []
+
+            # task_features, use_task_bias, use_task_gain, n_inputs, trace_length, actions, file, episodic, loss = None
+            DRQN_params=get_DRQN_configs(inputs,externalActions,filename,episodic)
+            pols[pol] = TaskDriftDRQN(DRQN_params, episodic_performance=True)
+
+        method = HomeostaticPol(episodic=episodic, actions=externalActions, filename=filename, pols=pols, weights=None,
+                                probability_rule=ProbabilityRule.UCB,
+                                **homeostatic_params)
+        method.set_tasks({(i,): 1. / float(n_tasks) for i in range(n_tasks)})
     elif args.method == "TaskDrift_PPO":
         from Lifelong.HomeostaticPols import HomeostaticPol
         from Lifelong.TaskDrift_PPO2 import TaskDriftPPO
@@ -295,6 +313,23 @@ def select_learner(args,inputs,externalActions,filename,n_tasks,episodic=True):
             pols[pol] = TaskDriftPPO(PPO_params,episodic_performance=True)
 
         method = HomeostaticPol(episodic=episodic, actions=externalActions, filename=filename, pols=pols, weights=None,
+                                **homeostatic_params)
+        method.set_tasks({(i,): 1. / float(n_tasks) for i in range(n_tasks)})
+    elif args.method == "TaskDrift_PPO_UCB":
+        from Lifelong.HomeostaticPols import HomeostaticPol,ProbabilityRule
+        from Lifelong.TaskDrift_PPO2 import TaskDriftPPO
+        from Configs.InstructionSetsMultiExp import homeostatic_params
+        # batch_size=32
+        num_pols = args.policies
+        pols = [None] * num_pols
+        for pol in range(num_pols):
+            task_features = []
+            # task_features, use_task_bias, use_task_gain, n_inputs, trace_length, actions, file, episodic, loss = None
+            PPO_params=get_A2C_configs(inputs,externalActions,filename,episodic)
+            pols[pol] = TaskDriftPPO(PPO_params,episodic_performance=True)
+
+        method = HomeostaticPol(episodic=episodic, actions=externalActions, filename=filename, pols=pols, weights=None,
+                                probability_rule=ProbabilityRule.UCB,
                                 **homeostatic_params)
         method.set_tasks({(i,): 1. / float(n_tasks) for i in range(n_tasks)})
     elif args.method == "Unadaptive_DRQN":
@@ -387,13 +422,13 @@ if __name__ == '__main__':
     parser.add_argument("-x", dest="experiment_type", type=str, default="single")  # single, lifelong_convergence , lifelong
     args = parser.parse_args()
     print("will start run ",args.run, " with experiment_type ",args.experiment_type, "and ",args.policies, " policies of ", args.method)
-    #args.experiment_type="RAM_test1000"
-    # args.VISUAL=False
-    #args.method="RandomLearner"
-    #args.policies=1
+    #args.experiment_type="lifelongx18t"
+    #args.VISUAL=False
+    #args.method="TaskDrift_DRQN_UCB"
+    #args.policies=4
     #args.run=1
     #args.filename="/home/david/LifelongRL/"
-    # args.environment_file=False
+    #args.environment_file=False
     #filename=args.filename+args.experiment_type+str(args.run)
     filename=args.filename +args.experiment_type+str(args.run) + '_' + args.method + str(args.policies) + "pols" + os.environ["tuning_lr"]
     walltime = 60*3600 #60*3600  # 60 hours by default

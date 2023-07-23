@@ -20,7 +20,7 @@ from keras.optimizers import Adam, Adadelta
 from keras.layers.recurrent import LSTM
 from keras.layers.normalization import BatchNormalization
 from keras import backend as K
-import tensorflow.compat.v1 as tf
+import tensorflow as tf
 
 #tf.python.control_flow_ops = tf
 

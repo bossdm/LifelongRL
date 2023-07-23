@@ -225,8 +225,8 @@ class A2C_Learner(CompleteLearner):
 
 
     @overrides
-    def continue_experiment(self,intervals):
-        self.intervals=intervals
+    def continue_experiment(self,args):
+        self.intervals=args
         if self.intervals:
             self.loss_file=open(self.file+"_loss",mode="wb")
 

@@ -322,9 +322,9 @@ class SSA_gradientQ(SSA_with_WM):
         return [self.null_state(n_inputs), 0., 0., self.null_state(n_inputs)]
 
     @overrides
-    def continue_experiment(self, intervals):
-        self.intervals = intervals
-        if intervals:
+    def continue_experiment(self, args):
+        self.intervals = args
+        if self.intervals:
             self.Qlearner.loss_file = open(self.file + "_loss", mode="wb")
 
     @overrides  # (SSAimplementor)

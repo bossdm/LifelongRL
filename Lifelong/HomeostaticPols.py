@@ -305,6 +305,7 @@ class ProbabilityRule(object):
 
     distance=0
     epsilon=1
+    UCB=2
 
 class HomeostaticPol(CompleteLearner):
     """
@@ -354,12 +355,6 @@ class HomeostaticPol(CompleteLearner):
         self.policy_chosen=False
         self.episodic=episodic
         self.initialise_unseen=initialise_unseen
-
-
-
-
-
-
         if self.initialise_unseen:
             self.N_trainings={}
         #self.offline_updates=offline_updates
@@ -369,8 +364,8 @@ class HomeostaticPol(CompleteLearner):
         if weights is not None:
             self.initialise_task_coords()
     @overrides
-    def continue_experiment(self,intervals):
-        self.intervals=intervals
+    def continue_experiment(self,args):
+        self.intervals=args
     # def track_q(self, old_location, location,intervals):
     #     print("track q"+str(intervals))
     #     for min,max in intervals:
@@ -560,6 +555,8 @@ class HomeostaticPol(CompleteLearner):
 
         self.most_general_policy()
         self.avg_velocities={F:[-float('inf') for pol in self.pols] for F in self.occurence_weights}
+        if self.probability_rule == ProbabilityRule.UCB:
+            self.UCB_stats = {F: [1.0 for pol in self.pols] for F in self.occurence_weights}
     def initialise_around_center(self,F):
 
         self.task_coords[F] = self.get_center(self.D) + self.coord_noise(level=self.stepsize / 4)
@@ -664,6 +661,10 @@ class HomeostaticPol(CompleteLearner):
         #print("pol ",self.current_pol)
         V_avg = self.pols[self.current_pol].get_avg_velocity(self.current_feature)
         self.avg_velocities[self.current_feature][self.current_pol] = V_avg
+        if self.probability_rule == ProbabilityRule.UCB:
+            n = sum(p.var_stat.n for p in self.pols) + 1
+            UCB = self.pols[self.current_pol].get_UCB(n,self.current_feature)
+            self.UCB_stats[self.current_feature][self.current_pol] = UCB
 
     def new_pol(self,new_feature,new_pol):
 
@@ -1012,6 +1013,8 @@ class HomeostaticPol(CompleteLearner):
         self.new_pol(self.current_feature, new_pol)
     def best_policy(self,task):
         return self.argmax_randomtie(np.array(self.avg_velocities[task]))
+    def best_UCB_policy(self,task):
+        return self.argmax_randomtie(np.array(self.UCB_stats[task]))
     def choose_policy(self):
         """
         choose policy, proportional to distance
@@ -1038,6 +1041,9 @@ class HomeostaticPol(CompleteLearner):
                     else:
                         # get mindist policy
                         new_pol=self.best_policy(self.current_feature)
+                elif self.probability_rule == ProbabilityRule.UCB:
+                    new_pol = self.best_UCB_policy(self.current_feature)
+                    print(new_pol)
                 else:
 
                     new_pol=self.get_dist_based_policy()
@@ -1046,7 +1052,6 @@ class HomeostaticPol(CompleteLearner):
         else:
             new_pol=0
             self.new_pol(self.current_feature, new_pol)
-            return
 
 
     def get_diversity(self):

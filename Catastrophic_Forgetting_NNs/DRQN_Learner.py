@@ -310,8 +310,8 @@ class DRQN_Learner(CompleteLearner):
         if self.total_t % self.agent.update_target_freq == 0:
             self.agent.update_target_model()
     @overrides
-    def continue_experiment(self,intervals):
-        self.intervals=intervals
+    def continue_experiment(self,args):
+        self.intervals=args
         if self.intervals:
             self.loss_file=open(self.file+"_loss",mode="wb")
 
